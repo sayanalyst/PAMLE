@@ -1,0 +1,11 @@
+{
+  "crs": "EPSG:32636 (WGS 84 / UTM zone 36N)",
+  "origin": [522300, 4822000, 0],
+  "z_units": "meters above sea level",
+  "spatial_index": "simple-grid",
+  "type": "Projected",
+  "method": "Universal Transverse Mercator (UTM)",
+  "celestial_body": "Earth",
+  "accuracy": "Based on World Geodetic System 1984 ensemble (EPSG:6326), which has a limited accuracy of at best 2 meters.",
+  "reference": "Dynamic (relies on a datum which is not plate-fixed)"
+}

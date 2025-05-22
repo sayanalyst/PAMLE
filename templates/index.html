@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>PAMLE v1.0</title>
+    <link rel="icon" href="/static/assets/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@v0.153.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@v0.153.0/examples/jsm/"
+        }
+    }
+    </script>
+    <!script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+    <script type="module" src="/static/js/main.js" defer></script>
+</head>
+<body>
+    <div id="heading">
+        <img src="/static/assets/logo.png" alt="Logo" id="logo" />
+        <h1>Project Advanced Mesh-Loader Engine</h1>
+        <div id="header-spacer"></div>
+        <div class="border"></div>
+        <span id="thesis-text"><em>Master's Thesis Project: Made by Sayan Das</em></span>
+    </div>
+    <div id="viewer-container">
+        <button id="end-session-button" style="position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+            padding: 4px 8px; font-size: 0.8rem; cursor: pointer; background-color: #c0392b; color: white; border: none; border-radius: 4px; z-index: 10003;">End Session</button>
+        <div id="upload-mesh-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7); padding: 20px; border-radius: 8px; z-index: 10002; text-align: center;">
+            <input type="file" id="mesh-upload-input" accept=".gltf,.glb,.obj,.ply" style="margin-bottom: 10px;"/>
+            <br/>
+            <button id="load-mesh-button" disabled style="padding: 4px 8px; font-size: 0.8rem; cursor: pointer; background-color: rgb(12, 88, 209); color: white; border: none; border-radius: 4px;">Load Mesh</button>
+        </div>
+
+        <button id="toggle-heatmap" title="Heatmap" class="control-button" style="right: 0.5rem;">Heatmap</button>
+        <button id="toggle-labeling" title="Labeling Mode" class="control-button" style="right: 5.0rem;">Label</button>
+        <button id="label-list-button" title="Label List" class="control-button" style="left: 0.5rem;">Labels ▼</button>
+        <button id="export-annotations-csv" title="Export Annotations as CSV" class="control-button" style="left: 6rem;">Export Annotations CSV</button>
+        <button id="export-selected-mesh" title="Export Selected Mesh" class="control-button" style="left: 18rem; display: none;">Export Selected Mesh</button>
+        <div id="label-list-dropdown" style="display:none; position:absolute; left: 0.5rem; top: 3.5rem; background: rgba(0,0,0,0.8); color: white; border: 1px solid #eee; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 10000; min-width: 150px; font-size: 0.8rem;"></div>
+        <button id="fullscreen-toggle" title="Fullscreen" style="position:absolute; bottom:1.2rem; right:0.5rem; background:none; border:none; color:#eee; font-size:1.5rem; cursor:pointer; user-select:none;">&#x26F6;</button>
+        <div id="message-box" style="position:absolute; top:2.5rem; right:0.5rem; color:#eee; font-size:0.9rem; pointer-events:none;"></div>
+        <div id="crs-metadata" style="position:absolute; top:4.5rem; right:0.5rem; color:#eee; font-size:0.7rem; max-width: 250px; white-space: pre-wrap;"></div>
+        <div id="color-index-bar" style="position:absolute; top:4.5rem; left:0.5rem; width: 12px; height: 200px; background: linear-gradient(to top, hsl(252, 100%, 50%), hsl(180, 100%, 50%), hsl(120, 100%, 50%), hsl(60, 100%, 50%), hsl(0, 100%, 50%)); border: 1px solid #eee; border-radius: 4px;"></div>
+        <div id="color-index-numeric-labels" style="position:absolute; top:4.5rem; left:1.8rem; height: 200px; display: flex; flex-direction: column; justify-content: space-between; color: white; font-size: 0.7rem; user-select: none; pointer-events: none;"></div>
+        <div id="loading-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.7); color:#fff; font-size:1.2rem; display:flex; justify-content:center; align-items:center; z-index:1000;">
+            <div class="spinner">
+                <span id="loading-percentage">0%</span>
+            </div>
+        </div>
+
+        <div id="label-input-container" style="display:none; margin-top: 0.5rem;">
+            <input type="text" id="label-input" placeholder="Enter label for selection" style="width:150px;"/>
+            <button id="annotate-button" style="margin-left:0.5rem;">Annotate</button>
+            <button id="save-label" style="margin-left:0.5rem;">Save</button>
+            <button id="mark-feature-button" style="margin-left:0.5rem; padding: 0.3rem 0.6rem; cursor: pointer;" title="Activate marking mode to flag points as features">Mark Feature</button>
+        </div>
+
+        <!-- Annotation Modal -->
+        <div id="annotation-modal" style="display:none; position:fixed; top:55%; left:50%; transform: translate(-50%, -50%);
+             background-color: #222; color: white; padding: 20px; border-radius: 8px; z-index: 10001; width: 400px; max-height: 80vh; overflow-y: auto;">
+            <h3>Annotation for Label: <span id="annotation-label-name"></span></h3>
+             <form id="annotation-form">
+                <label for="site_name">Site Name:</label><br/>
+                <input type="text" id="site_name" name="SiteName" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="phase">Phase:</label><br/>
+                <input type="text" id="phase" name="Phase" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="findcode">FindCode:</label><br/>
+                <input type="text" id="findcode" name="FindCode" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="description">Description:</label><br/>
+                <textarea id="description" name="Description" rows="3" style="width: 100%; margin-bottom: 8px;"></textarea><br/>
+                <label for="condition">Condition:</label><br/>
+                <select id="condition" name="Condition" style="width: 100%; margin-bottom: 8px;">
+                    <option value="In Phase">In Phase</option>
+                    <option value="Not in Phase">Not in Phase</option>
+                </select><br/>
+                <label for="remarks">Remarks:</label><br/>
+                <textarea id="remarks" name="Remarks" rows="2" style="width: 100%; margin-bottom: 8px;"></textarea><br/>
+                <label for="dating">Dating:</label><br/>
+                <input type="text" id="dating" name="Dating" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="supervisor">Supervisor:</label><br/>
+                <input type="text" id="supervisor" name="Supervisor" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="date">Date:</label><br/>
+                <input type="date" id="date" name="Date" style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label for="photo_done">Photo done:</label><br/>
+                <select id="photo_done" name="Photo_done" style="width: 100%; margin-bottom: 8px;">
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                </select><br/>
+
+                <!-- Coordinates Section -->
+                <fieldset style="border: 1px solid #555; padding: 10px; margin-bottom: 8px; border-radius: 4px;">
+                    <legend>Coordinates</legend>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label for="coord-x" style="margin-right: 5px;">X:</label>
+                        <input type="text" id="coord-x" name="CoordX" style="width: 30%; margin-right: 10px;"/>
+                        <label for="coord-y" style="margin-right: 5px;">Y:</label>
+                        <input type="text" id="coord-y" name="CoordY" style="width: 30%; margin-right: 10px;"/>
+                        <label for="coord-z" style="margin-right: 5px;">Z:</label>
+                        <input type="text" id="coord-z" name="CoordZ" style="width: 30%;"/>
+                    </div>
+                </fieldset>
+                <!-- Feature Dimensions Section -->
+                 <fieldset style="border: 1px solid #555; padding: 10px; margin-bottom: 8px; border-radius: 4px;">
+                    <legend>Feature Dimensions</legend>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label for="dim-l" style="margin-right: 5px;">L:</label>
+                        <input type="text" id="dim-l" name="DimL" style="width: 30%; margin-right: 10px;"/>
+                        <label for="dim-w" style="margin-right: 5px;">W:</label>
+                        <input type="text" id="dim-w" name="DimW" style="width: 30%; margin-right: 10px;"/>
+                        <label for="dim-h" style="margin-right: 5px;">H:</label>
+                        <input type="text" id="dim-h" name="DimH" style="width: 30%;"/>
+                    </div>
+                </fieldset>
+
+                <label for="annotation-image">Upload Images:</label><br/>
+                <input type="file" id="annotation-image" name="AnnotationImage" accept=".jpeg,.jpg,.bmp,.png,.tif" multiple style="width: 100%; margin-bottom: 8px;" /><br/>
+                <label>Image Previews:</label><br/>
+                <div id="annotation-image-previews" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; margin-bottom: 8px; border: 1px solid #555; border-radius: 4px; padding: 4px;"></div>
+                <button type="button" id="remove-annotation-images" style="display: none; margin-bottom: 8px;">Remove All Images</button><br/>
+                <label for="webpage-address">Webpage Addresses:</label><br/>
+                <div id="webpage-address-inputs-container" style="margin-bottom: 8px;">
+                    <div class="webpage-address-input-wrapper" style="display: flex; align-items: center; margin-bottom: 4px;">
+                        <input type="text" class="webpage-address-input" placeholder="https://example.com" style="flex-grow: 1; margin-right: 8px;" />
+                        <button type="button" class="remove-webpage-address-input" title="Remove URL" style="background-color: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 2px 6px;">×</button>
+                    </div>
+                </div>
+                <button type="button" id="add-webpage-address-input" style="margin-bottom: 8px;">Add URL</button><br/>
+                <div id="webpage-address-links" style="margin-bottom: 8px;"></div>
+                <div id="webpage-image-previews-container" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; margin-bottom: 8px;"></div>
+                <img id="webpage-image-preview" src="" alt="Webpage Image Preview" style="max-width: 100%; max-height: 150px; display: none; margin-bottom: 8px; border: 1px solid #555; border-radius: 4px; cursor: pointer;" />
+                <button type="button" id="remove-webpage-image-previews" style="display: none; margin-bottom: 8px;">Remove All Webpage Images</button><br/>
+                <button type="submit" style="margin-top: 10px;">Save Annotation</button>
+                <button type="button" id="close-annotation-modal" style="margin-top: 10px; margin-left: 10px;">Cancel</button>
+            </form>
+        </div>
+
+        <div id="label-tooltip" style="position:absolute; pointer-events:none; background:rgba(0,0,0,0.7); color:#fff; padding:4px 8px; border-radius:4px; font-size:0.8rem; display:none; z-index:10000;"></div>
+
+        <!-- Image View Popup Modal -->
+        <div id="image-view-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:rgba(0,0,0,0.8); z-index:10002; justify-content:center; align-items:center;">
+            <span id="image-view-close" style="position:absolute; top:20px; right:30px; color:#fff; font-size:30px; font-weight:bold; cursor:pointer;">&times;</span>
+            <img id="image-view-content" src="" alt="Full View" style="max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 0 10px #000;" />
+        </div>
+        <!-- Custom Confirmation Modal for Label Deletion -->
+        <div id="label-delete-confirmation-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background-color: rgba(0,0,0,0.5); z-index: 10005; justify-content: center; align-items: center;">
+            <div id="label-delete-confirmation-dialog" style="background-color: #222; color: white; padding: 20px; border-radius: 8px; width: 300px; max-width: 90%; box-shadow: 0 0 10px #000; position: relative;">
+                <p>Delete mesh area?</p>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button id="label-delete-confirm-yes" style="background-color: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Yes</button>
+                    <button id="label-delete-confirm-no" style="background-color: #555; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
