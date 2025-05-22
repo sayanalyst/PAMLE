@@ -12,16 +12,10 @@ IF ERRORLEVEL 1 (
     set "MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe"
     set "MINICONDA_INSTALLER=%TEMP%\Miniconda3-latest-Windows-x86_64.exe"
 
-    REM Download Miniconda installer using powershell
-    echo Downloading Miniconda installer...
-    powershell -Command "Invoke-WebRequest -Uri '%MINICONDA_URL%' -OutFile '%MINICONDA_INSTALLER%'"
+    REM Download Miniconda installer using powershell with wget and silent install
+    echo Downloading and installing Miniconda silently...
+    powershell -Command "wget 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe' -outfile '.\\miniconda.exe'; Start-Process -FilePath '.\\miniconda.exe' -Wait; del .\\miniconda.exe"
 
-    REM Run Miniconda installer silently
-    echo Installing Miniconda...
-    start /wait "" "%MINICONDA_INSTALLER%" /InstallationType=JustMe /AddToPath=1 /RegisterPython=0 /S /D=%USERPROFILE%\Miniconda3
-
-    REM Remove installer
-    del "%MINICONDA_INSTALLER%"
 
     REM Refresh environment variables for current session
     set "PATH=%USERPROFILE%\Miniconda3;%USERPROFILE%\Miniconda3\Scripts;%USERPROFILE%\Miniconda3\Library\bin;%PATH%"
