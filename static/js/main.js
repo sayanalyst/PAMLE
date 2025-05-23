@@ -1085,10 +1085,14 @@ if (removeAllImagesButton) {
             try {
                 // Save combined object with labels and markedFeatures
                 const markedFeaturesData = this.flaggedPoints.map(fp => {
-                    const pos = fp.mesh.position;
+                    // Save position relative to pivot local coordinates
+                    let localPos = fp.mesh.position.clone();
+                    if (this.pivot) {
+                        localPos = fp.mesh.position.clone();
+                    }
                     return {
                         label: fp.label,
-                        position: { x: pos.x, y: pos.y, z: pos.z }
+                        position: { x: localPos.x, y: localPos.y, z: localPos.z }
                     };
                 });
                 const combinedData = {
@@ -1721,6 +1725,7 @@ if (removeAllImagesButton) {
                     const diamondMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
                     const diamondMesh = new THREE.Mesh(diamondGeometry, diamondMaterial);
                     if (this.pivot) {
+                        // Set position directly in pivot local coordinates
                         diamondMesh.position.set(feature.position.x, feature.position.y, feature.position.z);
                         this.pivot.add(diamondMesh);
                     } else {
@@ -1964,7 +1969,8 @@ if (removeAllImagesButton) {
                         // Store old flaggedPoints data
                         const oldFlaggedPoints = this.flaggedPoints.map(({ mesh, label }) => {
                             console.log(`Flagged point before reload - label: ${label}, position: ${mesh.position.toArray()}, parent: ${mesh.parent ? mesh.parent.type : 'none'}, material opacity: ${mesh.material.opacity}, transparent: ${mesh.material.transparent}`);
-                            return { position: mesh.getWorldPosition(new THREE.Vector3()), label };
+                            // Store position relative to pivot local coordinates
+                            return { position: mesh.position.clone(), label };
                         });
                         // Remove old marker meshes from scene
                         this.flaggedPoints.forEach(({ mesh }) => {
@@ -1979,8 +1985,7 @@ if (removeAllImagesButton) {
                             const diamondGeometry = new THREE.OctahedronGeometry(0.2);
                             const diamondMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
                             const diamondMesh = new THREE.Mesh(diamondGeometry, diamondMaterial);
-                            const localPos = this.pivot.worldToLocal(position.clone());
-                            diamondMesh.position.copy(localPos);
+                            diamondMesh.position.copy(position);
                             this.pivot.add(diamondMesh);
                             this.flaggedPoints.push({ mesh: diamondMesh, label });
                         });
