@@ -18,5 +18,4 @@ RESTful API for data persistence (labels, annotations, images)
 
 Open, local-first deployment (runs in a browser via Flask)
 
-🗺 Use Case
-PAMLE was initially developed for the trench A2.4d at Kınık Höyük, Turkey—a multi-period archaeological site excavated by NYU and the University of Pavia. It has since been adapted as a general-purpose framework for archaeological mesh interpretation, stratigraphic modeling, and digital heritage dissemination.
+Download the project as zip, a sample file is present in PAMLE/static/data
