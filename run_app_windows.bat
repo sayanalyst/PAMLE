@@ -17,18 +17,19 @@ IF ERRORLEVEL 1 (
     powershell -Command "wget 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe' -outfile '.\\miniconda.exe'; Start-Process -FilePath '.\\miniconda.exe' -Wait; del .\\miniconda.exe"
 
 
-    REM Refresh environment variables for current session
-    set "PATH=%USERPROFILE%\Miniconda3;%USERPROFILE%\Miniconda3\Scripts;%USERPROFILE%\Miniconda3\Library\bin;%PATH%"
+REM Refresh environment variables for current session
+REM Properly initialize conda in the current session by calling activate.bat
+call "%USERPROFILE%\Miniconda3\Scripts\activate.bat"
 
-    REM Check if conda is now available
-    where conda >nul 2>&1
-    IF ERRORLEVEL 1 (
-        echo Conda installation failed or conda not found in PATH.
-        pause
-        exit /b 1
-    ) ELSE (
-        echo Conda installed successfully.
-    )
+REM Check if conda is now available
+where conda >nul 2>&1
+IF ERRORLEVEL 1 (
+    echo Conda installation failed or conda not found in PATH.
+    pause
+    exit /b 1
+) ELSE (
+    echo Conda installed successfully.
+)
 )
 
 REM Check if the conda environment "open3d-env" exists
