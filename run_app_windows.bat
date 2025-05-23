@@ -11,10 +11,12 @@ IF ERRORLEVEL 1 (
     set "CONDA_PATH="
 
     REM Search drives C: to Z: for conda.exe (limit search to avoid long delays)
+    setlocal enabledelayedexpansion
     for %%D in (C D E F G H I J K L M N O P Q R S T U V W X Y Z) do (
         if exist %%D:\ (
             for /r %%D:\ %%F in (conda.exe) do (
                 set "CONDA_PATH=%%~dpF"
+                endlocal & set "CONDA_PATH=!CONDA_PATH!"
                 goto :FoundConda
             )
         )
