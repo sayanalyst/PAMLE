@@ -1,26 +1,13 @@
 @echo off
-REM Windows batch script to create and run the app in the Open3D conda environment
 setlocal enabledelayedexpansion
 
-REM === Configuration ===
+REM === CONFIGURATION ===
 set "ENVNAME=open3d-env"
 set "MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe"
 set "MINICONDA_INSTALLER=%TEMP%\Miniconda3-latest-Windows-x86_64.exe"
 REM =====================
 
-REM Check if conda is available
-where conda >nul 2>&1
-IF ERRORLEVEL 1 (
-    echo Conda is not found in PATH.
-    echo Press any key to download and install Miniconda...
-    pause >nul
-
-    REM Download Miniconda installer using powershell with wget and silent install
-    echo Downloading and installing Miniconda silently...
-    powershell -Command "wget '%MINICONDA_URL%' -outfile '.\\miniconda.exe'; Start-Process -FilePath '.\\miniconda.exe' -Wait; del .\\miniconda.exe"
-)
-
-REM Try to find conda in PATH again
+REM Try to find conda in PATH
 where conda >nul 2>&1
 if not errorlevel 1 (
     set "CONDAFOUND=1"
@@ -44,19 +31,7 @@ if not defined CONDAFOUND (
     )
 )
 
-REM Refresh environment variables for current session by calling activate.bat
-call "%USERPROFILE%\Miniconda3\Scripts\activate.bat"
-
 :found_conda
-REM Check if conda is now available
-where conda >nul 2>&1
-IF ERRORLEVEL 1 (
-    echo Conda installation failed or conda not found in PATH.
-    pause
-    exit /b 1
-) ELSE (
-    echo Conda installed successfully.
-)
 
 REM If still not found, prompt to install Miniconda (input loop for y/n)
 if not defined CONDAFOUND (
@@ -89,49 +64,46 @@ if "%CONDAFOUND%"=="2" (
     set "PATH=%CONDAPATH%;%PATH%"
 )
 
-REM Check if the conda environment exists
-conda info --envs | findstr /R /C:"^%ENVNAME%" >nul
-IF ERRORLEVEL 1 (
+REM Use conda run to execute in the environment, creating it if needed
+echo Checking for environment "%ENVNAME%"...
+conda env list | findstr /I /C:"%ENVNAME%" >nul 2>&1
+if errorlevel 1 (
     echo Creating conda environment "%ENVNAME%"...
     conda create -y -n %ENVNAME% python=3.9
-    IF ERRORLEVEL 1 (
-        echo Failed to create conda environment.
+    if errorlevel 1 (
+        echo Failed to create environment.
         pause
         exit /b 1
     )
-    echo Installing required packages...
-    call conda activate %ENVNAME%
-    conda install -y flask flask-cors flask-compress numpy shapely -c conda-forge
-    IF ERRORLEVEL 1 (
-        echo Failed to install packages via conda. Trying pip...
-        pip install flask flask-cors flask-compress numpy shapely trimesh
-        IF ERRORLEVEL 1 (
-            echo Failed to install packages via pip.
+    echo Installing dependencies...
+    conda install -y -n %ENVNAME% flask flask-cors flask-compress numpy shapely -c conda-forge
+    if errorlevel 1 (
+        echo Failed to install dependencies with conda. Trying pip...
+        conda run -n %ENVNAME% pip install flask flask-cors flask-compress numpy shapely trimesh
+        if errorlevel 1 (
+            echo Failed to install dependencies with pip.
             pause
             exit /b 1
         )
-    ) ELSE (
-        pip install trimesh
+    ) else (
+        conda run -n %ENVNAME% pip install trimesh
     )
-) ELSE (
-    echo Conda environment "%ENVNAME%" already exists.
-    call conda activate %ENVNAME%
 )
 
-REM Navigate to the project directory
+REM Change to script directory (outside any parenthesis for safety)
 cd /d "%~dp0"
 
-REM Run the Flask app
+REM Start the Flask app (ensure app.py uses port 5001)
 echo Starting Flask app...
-call conda activate %ENVNAME%
-python app.py
-IF ERRORLEVEL 1 (
+start "" conda run -n %ENVNAME% python app.py
+if errorlevel 1 (
     echo Failed to start Flask app.
     pause
     exit /b 1
 )
 
-REM Open the default browser to the Flask server URL
+REM Open browser
+timeout /t 5 /nobreak >nul
 start http://127.0.0.1:5001
 
 pause
