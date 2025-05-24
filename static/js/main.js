@@ -3,7 +3,6 @@ console.log('main.js loaded');
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { PolygonSelection } from './PolygonSelection.js';
 
 class MeshViewer {
     constructor(containerId, toggleButtonId, fullscreenButtonId, toggleLabelingId, labelInputContainerId, labelInputId, saveLabelButtonId) {
@@ -1945,7 +1944,12 @@ if (removeAllImagesButton) {
                 this.controls.enabled = true;
                 this.controls.enableZoom = true;
                 this.controls.enableRotate = true;
+                // Enable pan only with Shift key pressed
                 this.controls.enablePan = false;
+                // Clear toggledLabels to prevent automatic showing of marked features
+                this.toggledLabels.clear();
+                // Reset showFeaturesActive to false to keep button state consistent
+                this.showFeaturesActive = false;
 
                 // Show spinner and reload mesh after toggling on labeling mode
                 if (this.loadingOverlay) {
@@ -1990,11 +1994,9 @@ if (removeAllImagesButton) {
                             this.flaggedPoints.push({ mesh: diamondMesh, label });
                         });
                     }
-                    // Update marker visibility based on toggledLabels
-            this.toggledLabels.forEach(label => {
-                // Remove label argument since highlightMarkersByLabel no longer takes it
-                this.highlightMarkersByLabel();
-            });
+            // Update marker visibility based on toggledLabels
+            // Call highlightMarkersByLabel once after clearing toggledLabels to update marker visibility
+            this.highlightMarkersByLabel();
                     this.controls.update();
                     this.renderer.render(this.scene, this.camera);
                 } catch (error) {
@@ -2022,6 +2024,16 @@ if (removeAllImagesButton) {
                 this.controls.enableZoom = true;
                 this.controls.enableRotate = true;
                 this.controls.enablePan = true;
+
+                // Remove event listeners for pan key toggling
+                if (this._panKeyDownListener) {
+                    window.removeEventListener('keydown', this._panKeyDownListener);
+                    this._panKeyDownListener = null;
+                }
+                if (this._panKeyUpListener) {
+                    window.removeEventListener('keyup', this._panKeyUpListener);
+                    this._panKeyUpListener = null;
+                }
 
                 // Show spinner and reload mesh after toggling off labeling mode
                 if (this.loadingOverlay) {
@@ -2646,7 +2658,11 @@ if (removeAllImagesButton) {
 
         this.polygonFillMesh = new THREE.Mesh(shapeGeometry, fillMaterial);
         this.polygonFillMesh.renderOrder = 9999;
-        this.scene.add(this.polygonFillMesh);
+        if (this.pivot) {
+            this.pivot.add(this.polygonFillMesh);
+        } else {
+            this.scene.add(this.polygonFillMesh);
+        }
 
         // Remove only the 2D polygon outline canvas after showing finalized selection
         if (this.selectionLineCanvas) {
@@ -3039,11 +3055,12 @@ if (removeAllImagesButton) {
         showFeaturesButton.style.cursor = 'pointer';
         showFeaturesButton.title = 'Toggle all marked feature labels';
 
-        let showFeaturesActive = false;
+        // Manage showFeaturesActive as a property of this (MeshViewer) to keep state consistent
+        this.showFeaturesActive = false;
 
         showFeaturesButton.addEventListener('click', () => {
-            showFeaturesActive = !showFeaturesActive;
-            if (showFeaturesActive) {
+            this.showFeaturesActive = !this.showFeaturesActive;
+            if (this.showFeaturesActive) {
                 // Add all marked feature labels to toggledLabels
                 markedFeatureLabels.forEach(label => this.toggledLabels.add(label));
             } else {
@@ -3571,6 +3588,7 @@ highlightFacesByLabel(label) {
 highlightMarkersByLabel() {
         const highlightedLabel = this.currentlyHighlightedLabel;
         console.log('highlightMarkersByLabel called. Currently highlighted label:', highlightedLabel);
+
         // Show or hide markers based on toggledLabels set
         this.flaggedPoints.forEach(({ mesh, label: markerLabel }) => {
             if (this.toggledLabels.has(markerLabel)) {
@@ -3691,6 +3709,15 @@ highlightMarkersByLabel() {
                 }
             }
         });
+
+        // Additional: Immediately hide all delete crosses when show features button is toggled off
+        if (!this.showFeaturesActive) {
+            this.flaggedPoints.forEach(({ mesh }) => {
+                if (mesh.userData.deleteCrossElement) {
+                    mesh.userData.deleteCrossElement.style.display = 'none';
+                }
+            });
+        }
     }
 
     deleteMarkedFeature(label, mesh) {
