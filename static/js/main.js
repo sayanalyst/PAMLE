@@ -26,6 +26,9 @@ class MeshViewer {
         // Add mark feature mode property
         this.markFeatureMode = false;
 
+        // Initialize selectionFinalized flag to false
+        this.selectionFinalized = false;
+
         // Assign existing Mark Feature button from HTML
         this.markFeatureButton = document.getElementById('mark-feature-button');
         console.log('Mark Feature button element:', this.markFeatureButton);
@@ -50,6 +53,7 @@ class MeshViewer {
 
         // Annotation data structure: map label to annotation object
         this.annotations = {};
+
 
 this.originalAnnotationImageUrls = null; // Store original ImageUrls for restoration on cancel
 
@@ -1004,6 +1008,7 @@ if (removeAllImagesButton) {
                 this.dragButton = event.button; // 0 = left, 2 = right
                 this.previousMousePosition.x = event.clientX;
                 this.previousMousePosition.y = event.clientY;
+                this.isDragging = false; // Reset dragging flag on mouse down
                 // Disable OrbitControls rotation while dragging mesh
                 this.controls.enableRotate = false;
             }
@@ -1039,6 +1044,7 @@ if (removeAllImagesButton) {
             if (event.button === 0 || event.button === 2) {
                 this.isDraggingMesh = false;
                 this.dragButton = null;
+                this.isDragging = false; // Reset dragging flag on mouse up
                 // Re-enable OrbitControls rotation after dragging mesh
                 this.controls.enableRotate = true;
             }
@@ -1047,7 +1053,37 @@ if (removeAllImagesButton) {
         this.renderer.domElement.addEventListener('mouseleave', () => {
             this.isDraggingMesh = false;
             this.dragButton = null;
+            this.isDragging = false; // Reset dragging flag on mouse leave
             this.controls.enableRotate = true;
+        });
+
+        // Prevent pan in labeling mode by disabling controls.enablePan and intercepting mouse events
+        this.renderer.domElement.addEventListener('wheel', (event) => {
+            if (this.labelingMode) {
+                // Allow zoom but prevent pan on wheel if needed
+                // Do nothing here to allow zoom
+            }
+        });
+
+        this.renderer.domElement.addEventListener('pointerdown', (event) => {
+            if (this.labelingMode) {
+                // Disable pan start on pointer down in labeling mode
+                event.stopPropagation();
+            }
+        });
+
+        this.renderer.domElement.addEventListener('pointermove', (event) => {
+            if (this.labelingMode) {
+                // Disable pan move on pointer move in labeling mode
+                event.stopPropagation();
+            }
+        });
+
+        this.renderer.domElement.addEventListener('pointerup', (event) => {
+            if (this.labelingMode) {
+                // Disable pan end on pointer up in labeling mode
+                event.stopPropagation();
+            }
         });
 
     }
@@ -1483,7 +1519,11 @@ if (removeAllImagesButton) {
             if (event.key === 'Escape' || event.key === 'Esc') {
                 // Clear polygonal selection points and selected faces
                 this.selectionPolygon = [];
+                this.selectionPolygon3D = [];
                 this.selectedFaces.clear();
+
+                // Reset selectionFinalized flag to allow new selections
+                this.selectionFinalized = false;
 
                 // Remove polygon line and fill mesh from scene and dispose
                 if (this.polygonLine) {
@@ -1502,12 +1542,13 @@ if (removeAllImagesButton) {
                 // Clear face highlights
                 this.clearSelectionHighlight();
 
-                // Re-enable controls if disabled during labeling
+                // Keep labeling mode active and label input visible
                 if (this.labelingMode) {
                     this.controls.enabled = true;
-                    this.labelingMode = false;
-                    this.toggleLabelingButton.classList.remove('active');
-                    this.labelInputContainer.style.display = 'none';
+                    // Do not disable labeling mode or hide label input container
+                    // this.labelingMode = false;
+                    // this.toggleLabelingButton.classList.remove('active');
+                    // this.labelInputContainer.style.display = 'none';
                 }
             }
         });
@@ -1740,6 +1781,12 @@ if (removeAllImagesButton) {
 
             // Update marker visibility based on toggledLabels (none toggled initially)
             this.highlightMarkersByLabel();
+
+            // If any toggled labels exist, highlight faces for the first toggled label
+            if (this.toggledLabels.size > 0) {
+                const firstLabel = this.toggledLabels.values().next().value;
+                this.highlightFacesByLabel(firstLabel);
+            }
             } else {
                 this.labels = [];
                 this.flaggedPoints = [];
@@ -2096,6 +2143,7 @@ if (removeAllImagesButton) {
         }
 
         this.selectionPolygon = [];
+        this.selectionPolygon3D = [];
         this.selectedFaces = new Set();
 
         // Create 2D overlay canvas for polygon drawing
@@ -2109,10 +2157,13 @@ if (removeAllImagesButton) {
         this.container.appendChild(this.overlayCanvas);
         this.overlayCtx = this.overlayCanvas.getContext('2d');
 
+        // Removed redundant click event listener to prevent duplicate polygon point addition
+        /*
         this.renderer.domElement.addEventListener('click', (event) => {
             if (!this.labelingMode) return;
             this.addPolygonPoint(event);
         });
+        */
 
         this.renderer.domElement.addEventListener('contextmenu', (event) => {
             if (!this.labelingMode) return;
@@ -2221,38 +2272,45 @@ if (removeAllImagesButton) {
                     // this.markFeatureMode = false;
                     // this.markFeatureButton.classList.remove('active');
                 }
-            } else if (this.toggledLabels.size > 0) {
-                // Check if a diamond marker was clicked when show features is toggled on
-                event.preventDefault();
+                } else if (this.toggledLabels.size > 0) {
+                    // Check if a diamond marker was clicked when show features is toggled on
+                    event.preventDefault();
 
-                const rect = this.renderer.domElement.getBoundingClientRect();
-                const mouse = new THREE.Vector2(
-                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                    -((event.clientY - rect.top) / rect.height) * 2 + 1
-                );
+                    const rect = this.renderer.domElement.getBoundingClientRect();
+                    const mouse = new THREE.Vector2(
+                        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                        -((event.clientY - rect.top) / rect.height) * 2 + 1
+                    );
 
-                const raycaster = new THREE.Raycaster();
-                raycaster.setFromCamera(mouse, this.camera);
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, this.camera);
 
-                // Raycast against diamond marker meshes
-                const markerMeshes = this.flaggedPoints.map(fp => fp.mesh);
-                const intersects = raycaster.intersectObjects(markerMeshes, true);
+                    // Raycast against diamond marker meshes
+                    const markerMeshes = this.flaggedPoints.map(fp => fp.mesh);
+                    const intersects = raycaster.intersectObjects(markerMeshes, true);
 
-                if (intersects.length > 0) {
-                    const intersectedMesh = intersects[0].object;
-                    // Find the label for the intersected marker mesh
-                    const flaggedPoint = this.flaggedPoints.find(fp => fp.mesh === intersectedMesh);
-                    if (flaggedPoint) {
-                        console.log('Diamond marker clicked:', flaggedPoint.label);
-                        this.showAnnotationModal(flaggedPoint.label);
+                    if (intersects.length > 0) {
+                        const intersectedMesh = intersects[0].object;
+                        // Find the label for the intersected marker mesh
+                        const flaggedPoint = this.flaggedPoints.find(fp => fp.mesh === intersectedMesh);
+                        if (flaggedPoint) {
+                            console.log('Diamond marker clicked:', flaggedPoint.label);
+                            this.showAnnotationModal(flaggedPoint.label);
+                        }
+                    }
+                } else {
+                    // Polygonal selection click behavior
+                    if (!this.labelingMode) return;
+                    if (this.selectionFinalized) {
+                        if (!this.assignLabelDialogShown && this.selectedFaces.size > 0) {
+                            this.assignLabelDialogShown = true;
+                            this.showAssignLabelModal();
+                        }
+                    } else {
+                        this.addPolygonPoint(event);
                     }
                 }
-            } else {
-                // Polygonal selection click behavior
-                if (!this.labelingMode) return;
-                this.addPolygonPoint(event);
-            }
-        });
+            });
     }
 
     sendPolygonToBackendForSelection() {
@@ -2349,6 +2407,7 @@ if (removeAllImagesButton) {
                     this.polygonLine = null;
                 }
                 this.hideProgressBar();
+                this.finalizeSelection();
             }
         };
 
@@ -2366,6 +2425,12 @@ if (removeAllImagesButton) {
     }
 
     addPolygonPoint(event) {
+        console.log('addPolygonPoint called. selectionFinalized:', this.selectionFinalized);
+        if (this.selectionFinalized) {
+            console.log('Selection is finalized. Ignoring addPolygonPoint call.');
+            // Prevent adding points after selection is finalized
+            return;
+        }
         const rect = this.renderer.domElement.getBoundingClientRect();
         const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2379,8 +2444,17 @@ if (removeAllImagesButton) {
             return;
         }
 
-        // Add original point
+        // Add original point to 2D polygon array
         this.selectionPolygon.push(new THREE.Vector2(x, y));
+
+        // Convert screen point to 3D pivot local coordinates and add to selectionPolygon3D
+        const ndcVector = new THREE.Vector3(x, y, 0);
+        ndcVector.unproject(this.camera);
+        let localPoint = ndcVector;
+        if (this.pivot) {
+            localPoint = this.pivot.worldToLocal(ndcVector.clone());
+        }
+        this.selectionPolygon3D.push(localPoint);
 
         // Cache raycast intersection point for this polygon point
         if (!this.raycastCache) {
@@ -2409,14 +2483,15 @@ if (removeAllImagesButton) {
             this.selectionPolygon.splice(lastIndex, 0, ...intermediatePoints);
         }
 
-        // Remove update3DPolygonFillMesh call here to avoid delay in 3D fill mesh update
-        // this.update3DPolygonFillMesh();
+        // Update 3D polygon fill mesh and outline line
+        this.update3DPolygonFillMesh();
+        this.update3DPolygonOutlineLine();
 
         this.highlightSelectionPolygon();
     }
 
     update3DPolygonFillMesh() {
-        if (this.selectionPolygon.length < 3) {
+        if (this.selectionPolygon3D.length < 3) {
             if (this.polygonFillMesh) {
                 this.scene.remove(this.polygonFillMesh);
                 this.polygonFillMesh.geometry.dispose();
@@ -2426,73 +2501,13 @@ if (removeAllImagesButton) {
             return;
         }
 
-        // Project selectionPolygon points onto mesh surface using raycasting
-        const shapePoints = [];
-        const raycaster = new THREE.Raycaster();
-
-        for (const p of this.selectionPolygon) {
-            const ndc = new THREE.Vector3(p.x, p.y, 0);
-            raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), this.camera);
-            const intersects = raycaster.intersectObject(this.mesh, true);
-            if (intersects.length > 0) {
-                const intersectPoint = intersects[0].point;
-                shapePoints.push(new THREE.Vector2(intersectPoint.x, intersectPoint.y)); // Use x,y for shape
-            } else {
-                // Fallback: use unprojected point
-                const vector = new THREE.Vector3(p.x, p.y, 0);
-                vector.unproject(this.camera);
-                shapePoints.push(new THREE.Vector2(vector.x, vector.y));
-            }
-        }
-
-        // Create shape and geometry
-        const shape = new THREE.Shape(shapePoints);
-        const shapeGeometry = new THREE.ShapeGeometry(shape);
-
-        // Update geometry vertices z to match intersection points z
-        const vertices = shapeGeometry.attributes.position;
-
-        // Compute average z of mesh bounding box for fallback
-        const box = new THREE.Box3().setFromObject(this.mesh);
-        const avgZ = (box.min.z + box.max.z) / 2;
-
-        for (let i = 0; i < vertices.count; i++) {
-            const p = this.selectionPolygon[i];
-            const ndc = new THREE.Vector3(p.x, p.y, 0);
-            raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), this.camera);
-            const intersects = raycaster.intersectObject(this.mesh, true);
-            if (intersects.length > 0) {
-                vertices.setZ(i, intersects[0].point.z);
-            } else {
-                vertices.setZ(i, avgZ);
-            }
-        }
-        vertices.needsUpdate = true;
-
-        // Compute vertex normals
-        shapeGeometry.computeVertexNormals();
-
-        // Remove old polygonFillMesh
+        // Polygon fill mesh disabled as per user request to remove fill from polygon selection
         if (this.polygonFillMesh) {
             this.scene.remove(this.polygonFillMesh);
             this.polygonFillMesh.geometry.dispose();
             this.polygonFillMesh.material.dispose();
             this.polygonFillMesh = null;
         }
-
-        // Create material
-        const fillMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            opacity: 0.5,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: true,
-            depthTest: true
-        });
-
-        this.polygonFillMesh = new THREE.Mesh(shapeGeometry, fillMaterial);
-        this.polygonFillMesh.renderOrder = 9999;
-        this.scene.add(this.polygonFillMesh);
     }
 
     interpolatePoints(p1, p2, numPoints) {
@@ -2539,57 +2554,65 @@ if (removeAllImagesButton) {
     }
 
     highlightSelectionPolygon() {
-        // Disabled 2D overlay polygon outline to use only polygonal fill highlighter
-        // if (this.selectionPolygon.length < 2) return;
+        // Disabled 2D overlay polygon outline as per user request to remove 2D overlay visualization
+    }
 
-        // // Create polygon line (outline) as 2D overlay for performance
-        // if (!this.selectionLineCanvas) {
-        //     this.selectionLineCanvas = document.createElement('canvas');
-        //     this.selectionLineCanvas.style.position = 'absolute';
-        //     this.selectionLineCanvas.style.top = '0';
-        //     this.selectionLineCanvas.style.left = '0';
-        //     this.selectionLineCanvas.style.pointerEvents = 'none';
-        //     this.selectionLineCanvas.width = this.container.clientWidth;
-        //     this.selectionLineCanvas.height = this.container.clientHeight;
-        //     this.container.appendChild(this.selectionLineCanvas);
-        //     this.selectionLineCtx = this.selectionLineCanvas.getContext('2d');
-        // }
-        // const ctx = this.selectionLineCtx;
-        // ctx.clearRect(0, 0, this.selectionLineCanvas.width, this.selectionLineCanvas.height);
+    update3DPolygonOutlineLine() {
+        if (this.selectionPolygon3D.length < 2) {
+            if (this.polygonOutlineLine) {
+                if (this.pivot) {
+                    this.pivot.remove(this.polygonOutlineLine);
+                } else {
+                    this.scene.remove(this.polygonOutlineLine);
+                }
+                this.polygonOutlineLine.geometry.dispose();
+                this.polygonOutlineLine.material.dispose();
+                this.polygonOutlineLine = null;
+            }
+            return;
+        }
 
-        // ctx.strokeStyle = 'red';
-        // ctx.lineWidth = 2;
-        // ctx.beginPath();
-        // const rect = this.selectionLineCanvas.getBoundingClientRect();
+        // Create array of points for line geometry, closing the loop
+        const points = this.selectionPolygon3D.map(p => new THREE.Vector3(p.x, p.y, p.z));
+        points.push(points[0].clone()); // Close the loop
 
-        // for (let i = 0; i < this.selectionPolygon.length; i++) {
-        //     const p = this.selectionPolygon[i];
-        //     const x = ((p.x + 1) / 2) * rect.width;
-        //     const y = ((1 - p.y) / 2) * rect.height;
-        //     if (i === 0) {
-        //         ctx.moveTo(x, y);
-        //     } else {
-        //         ctx.lineTo(x, y);
-        //     }
-        // }
-        // if (this.selectionPolygon.length > 2) {
-        //     const p0 = this.selectionPolygon[0];
-        //     const x0 = ((p0.x + 1) / 2) * rect.width;
-        //     const y0 = ((1 - p0.y) / 2) * rect.height;
-        //     ctx.lineTo(x0, y0);
-        // }
-        // ctx.stroke();
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+        const material = new THREE.LineBasicMaterial({
+            color: 0xff0000,
+            linewidth: 2
+        });
+
+        const line = new THREE.Line(geometry, material);
+        line.renderOrder = 10000;
+
+        if (this.pivot) {
+            this.pivot.add(line);
+        } else {
+            this.scene.add(line);
+        }
+
+        if (this.polygonOutlineLine) {
+            if (this.pivot) {
+                this.pivot.remove(this.polygonOutlineLine);
+            } else {
+                this.scene.remove(this.polygonOutlineLine);
+            }
+            this.polygonOutlineLine.geometry.dispose();
+            this.polygonOutlineLine.material.dispose();
+        }
+        this.polygonOutlineLine = line;
     }
 
     finalizeSelection() {
-        if (this.selectionPolygon.length < 3) {
+        if (this.selectionPolygon3D.length < 3) {
             alert('Select at least 3 points to form a polygon.');
-            this.selectionPolygon = [];
-            if (this.polygonLine) {
-                this.scene.remove(this.polygonLine);
-                this.polygonLine.geometry.dispose();
-                this.polygonLine.material.dispose();
-                this.polygonLine = null;
+            this.selectionPolygon3D = [];
+            if (this.polygonFillMesh) {
+                this.scene.remove(this.polygonFillMesh);
+                this.polygonFillMesh.geometry.dispose();
+                this.polygonFillMesh.material.dispose();
+                this.polygonFillMesh = null;
             }
             return;
         }
@@ -2598,48 +2621,8 @@ if (removeAllImagesButton) {
             this.selectionLineCtx.clearRect(0, 0, this.selectionLineCanvas.width, this.selectionLineCanvas.height);
             this.selectionLineCanvas.style.display = 'none';
         }
-        // Create 3D polygonFillMesh from selectionPolygon points projected onto mesh surface
-        const shapePoints = [];
-        const raycaster = new THREE.Raycaster();
 
-        for (const p of this.selectionPolygon) {
-            const ndc = new THREE.Vector3(p.x, p.y, 0);
-            raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), this.camera);
-            const intersects = raycaster.intersectObject(this.mesh, true);
-            if (intersects.length > 0) {
-                const intersectPoint = intersects[0].point;
-                shapePoints.push(new THREE.Vector2(intersectPoint.x, intersectPoint.y));
-            } else {
-                const vector = new THREE.Vector3(p.x, p.y, 0);
-                vector.unproject(this.camera);
-                shapePoints.push(new THREE.Vector2(vector.x, vector.y));
-            }
-        }
-
-        const shape = new THREE.Shape(shapePoints);
-        const shapeGeometry = new THREE.ShapeGeometry(shape);
-
-        const vertices = shapeGeometry.attributes.position;
-
-        // Compute average z of mesh bounding box for fallback
-        const box = new THREE.Box3().setFromObject(this.mesh);
-        const avgZ = (box.min.z + box.max.z) / 2;
-
-        for (let i = 0; i < vertices.count; i++) {
-            const p = this.selectionPolygon[i];
-            const ndc = new THREE.Vector3(p.x, p.y, 0);
-            raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), this.camera);
-            const intersects = raycaster.intersectObject(this.mesh, true);
-            if (intersects.length > 0) {
-                vertices.setZ(i, intersects[0].point.z);
-            } else {
-                vertices.setZ(i, avgZ);
-            }
-        }
-        vertices.needsUpdate = true;
-
-        shapeGeometry.computeVertexNormals();
-
+        // Polygon fill mesh disabled as per user request to remove fill from polygon selection
         if (this.polygonFillMesh) {
             this.scene.remove(this.polygonFillMesh);
             this.polygonFillMesh.geometry.dispose();
@@ -2647,28 +2630,30 @@ if (removeAllImagesButton) {
             this.polygonFillMesh = null;
         }
 
-        const fillMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            opacity: 0.5,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: true,
-            depthTest: true
-        });
-
-        this.polygonFillMesh = new THREE.Mesh(shapeGeometry, fillMaterial);
-        this.polygonFillMesh.renderOrder = 9999;
-        if (this.pivot) {
-            this.pivot.add(this.polygonFillMesh);
-        } else {
-            this.scene.add(this.polygonFillMesh);
+        // Remove polygon outline line after finalization
+        if (this.polygonOutlineLine) {
+            if (this.pivot) {
+                this.pivot.remove(this.polygonOutlineLine);
+            } else {
+                this.scene.remove(this.polygonOutlineLine);
+            }
+            this.polygonOutlineLine.geometry.dispose();
+            this.polygonOutlineLine.material.dispose();
+            this.polygonOutlineLine = null;
         }
+
+        // Clear polygon selection arrays to restart fresh after finalization
+        this.selectionPolygon = [];
+        this.selectionPolygon3D = [];
 
         // Remove only the 2D polygon outline canvas after showing finalized selection
         if (this.selectionLineCanvas) {
             this.selectionLineCtx.clearRect(0, 0, this.selectionLineCanvas.width, this.selectionLineCanvas.height);
             this.selectionLineCanvas.style.display = 'none';
         }
+
+        // Set selectionFinalized flag to true to prevent further point additions
+        this.selectionFinalized = true;
     }
 
     orderPolygonPointsClockwise(points) {
@@ -2696,28 +2681,14 @@ if (removeAllImagesButton) {
 
         this.selectedFaces.clear();
 
-        // Use full interpolated polygon points for selection
-        // Compensate selectionPolygon points for mesh vertical offset before ordering and conversion
-        const compensatedPolygon = this.selectionPolygon.map(p => {
-            // Convert NDC y to world y, subtract 3 units, then convert back to NDC y
-            // Approximate by unprojecting, adjusting y, then projecting back
-            const vec = new THREE.Vector3(p.x, p.y, 0);
-            vec.unproject(this.camera);
-            vec.y -= 3;
-            vec.project(this.camera);
-            return new THREE.Vector2(vec.x, vec.y);
-        });
-
-        const orderedPolygonNDC = this.orderPolygonPointsClockwise(compensatedPolygon);
         const rect = this.renderer.domElement.getBoundingClientRect();
-        const orderedPolygon = orderedPolygonNDC.map(p => {
+        const polygonScreenPoints = this.selectionPolygon3D.map(p3d => {
+            const ndc = p3d.clone().applyMatrix4(this.pivot.matrixWorld).project(this.camera);
             return {
-                x: ((p.x + 1) / 2) * rect.width,
-                y: ((1 - p.y) / 2) * rect.height
+                x: ((ndc.x + 1) / 2) * rect.width,
+                y: ((1 - ndc.y) / 2) * rect.height
             };
         });
-
-        console.log('Ordered polygon points (screen pixels):', orderedPolygon);
 
         // Helper function to check polygon intersection using Separating Axis Theorem (SAT)
         function polygonsIntersect(poly1, poly2) {
@@ -2773,12 +2744,12 @@ if (removeAllImagesButton) {
                     const vB = new THREE.Vector3().fromBufferAttribute(position, b);
                     const vC = new THREE.Vector3().fromBufferAttribute(position, c);
 
-                    // Compensate for mesh vertical offset by subtracting 3 units from y-coordinate
-                    vA.y -= 3;
-                    vB.y -= 3;
-                    vC.y -= 3;
+                    if (this.pivot) {
+                        vA.applyMatrix4(this.pivot.matrixWorld);
+                        vB.applyMatrix4(this.pivot.matrixWorld);
+                        vC.applyMatrix4(this.pivot.matrixWorld);
+                    }
 
-                    // Project vertices to screen space in pixels
                     const screenA_NDC = vA.clone().project(this.camera);
                     const screenB_NDC = vB.clone().project(this.camera);
                     const screenC_NDC = vC.clone().project(this.camera);
@@ -2798,8 +2769,7 @@ if (removeAllImagesButton) {
                         }
                     ];
 
-                    // Check polygon intersection between face and selection polygon
-                    if (polygonsIntersect(facePolygon, orderedPolygon)) {
+                    if (polygonsIntersect(facePolygon, polygonScreenPoints)) {
                         this.selectedFaces.add(faceIndex);
                     }
                 }
@@ -2963,16 +2933,11 @@ if (removeAllImagesButton) {
                 if (toggleCheckbox.checked) {
                     this.toggledLabels.add(labelEntry.label);
                     this.highlightMarkersByLabel();
-                    this.highlightFacesByLabel(labelEntry.label);
+                    this.highlightFacesByLabels();
                 } else {
                     this.toggledLabels.delete(labelEntry.label);
                     this.highlightMarkersByLabel();
-                    if (this.currentlyHighlightedLabel === labelEntry.label) {
-                        this.selectedFaces.clear();
-                        this.finalizedSelectedFaces.clear();
-                        this.clearSelectionHighlight();
-                        this.currentlyHighlightedLabel = null;
-                    }
+                    this.highlightFacesByLabels();
                 }
             });
 
@@ -2994,16 +2959,11 @@ if (removeAllImagesButton) {
                 if (this.toggledLabels.has(labelEntry.label)) {
                     this.toggledLabels.delete(labelEntry.label);
                     this.highlightMarkersByLabel();
-                    if (this.currentlyHighlightedLabel === labelEntry.label) {
-                        this.selectedFaces.clear();
-                        this.finalizedSelectedFaces.clear();
-                        this.clearSelectionHighlight();
-                        this.currentlyHighlightedLabel = null;
-                    }
+                    this.highlightFacesByLabels();
                 } else {
                     this.toggledLabels.add(labelEntry.label);
                     this.highlightMarkersByLabel();
-                    this.highlightFacesByLabel(labelEntry.label);
+                    this.highlightFacesByLabels();
                 }
             });
 
@@ -3068,7 +3028,7 @@ if (removeAllImagesButton) {
                 markedFeatureLabels.forEach(label => this.toggledLabels.delete(label));
             }
             this.highlightMarkersByLabel();
-            this.highlightFacesByLabel();
+            this.highlightFacesByLabels();
         });
 
         this.labelListDropdown.appendChild(showFeaturesButton);
@@ -3383,77 +3343,34 @@ if (removeAllImagesButton) {
         alert('Mesh Successfully Exported');
     }
 
-highlightFacesByLabel(label) {
+    highlightFacesByLabels() {
         if (!this.mesh || !this.labels) return;
 
-        if (typeof label !== 'string' || label.trim() === '') {
-            console.warn('highlightFacesByLabel called with invalid or empty label:', label);
-            return;
-        }
-
-        // Debug logs for toggle behavior
-        console.log('Clicked label:', label);
-        console.log('Currently highlighted label:', this.currentlyHighlightedLabel);
-        console.log('Labels equal:', this.currentlyHighlightedLabel === label);
-
-        // Normalize labels for comparison
-        const normalizedLabel = label.trim().toLowerCase();
-        const normalizedCurrent = this.currentlyHighlightedLabel ? this.currentlyHighlightedLabel.trim().toLowerCase() : null;
-
-        // Toggle behavior: if the clicked label is already highlighted, clear highlight
-        if (normalizedCurrent === normalizedLabel) {
-            this.selectedFaces.clear();
-            this.finalizedSelectedFaces.clear();
-            this.clearSelectionHighlight();
-            this.currentlyHighlightedLabel = null;
-
-            // Reload mesh with loading overlay when toggling off label highlight
-            if (this.loadingOverlay) {
-                this.loadingOverlay.style.display = 'flex';
-                this.loadingOverlay.style.justifyContent = 'center';
-                this.loadingOverlay.style.alignItems = 'center';
-                this.loadingOverlay.style.position = 'fixed';
-                this.loadingOverlay.style.top = '0';
-                this.loadingOverlay.style.left = '0';
-                this.loadingOverlay.style.width = '100vw';
-                this.loadingOverlay.style.height = '100vh';
-                this.loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                this.loadingOverlay.style.zIndex = '9999';
-            }
-            this.loadMesh(this.currentMeshURL || '/static/data/mesh_12.gltf').then(() => {
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-                if (this.loadingOverlay) {
-                    this.loadingOverlay.style.display = 'none';
-                }
-            }).catch((error) => {
-                console.error('Error reloading mesh:', error);
-                if (this.loadingOverlay) {
-                    this.loadingOverlay.style.display = 'none';
-                }
-            });
-
-            return;
-        }
-
-        // Find label entry
-        const labelEntry = this.labels.find(l => l.label === label);
-        if (!labelEntry) return;
-
-        // Clear previous selection to highlight only this label's faces
+        // Clear previous selection to highlight only toggled labels' faces
         this.selectedFaces.clear();
         this.finalizedSelectedFaces.clear();
 
-        // Add faces of this label to finalizedSelectedFaces set for finalized selection color
-        for (const faceIndex of labelEntry.faces) {
-            this.finalizedSelectedFaces.add(faceIndex);
+        if (this.toggledLabels.size === 0) {
+            // No toggled labels, clear highlights and return
+            this.clearSelectionHighlight();
+            this.currentlyHighlightedLabel = null;
+            return;
+        }
+
+        // Add faces of all toggled labels to finalizedSelectedFaces set for finalized selection color
+        for (const label of this.toggledLabels) {
+            const labelEntry = this.labels.find(l => l.label === label);
+            if (!labelEntry) continue;
+            for (const faceIndex of labelEntry.faces) {
+                this.finalizedSelectedFaces.add(faceIndex);
+            }
         }
 
         // Highlight selected faces
         this.highlightSelectedFaces();
 
-        // Store currently highlighted label
-        this.currentlyHighlightedLabel = label;
+        // Clear currentlyHighlightedLabel since multiple labels can be toggled
+        this.currentlyHighlightedLabel = null;
     }
 
     deleteLabel(label) {
@@ -3858,12 +3775,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load annotations on startup
     window.viewer.loadAnnotations();
 
-    // Override highlightFacesByLabel to update export selected mesh button visibility
-    const originalHighlightFacesByLabel = window.viewer.highlightFacesByLabel.bind(window.viewer);
-    window.viewer.highlightFacesByLabel = function(label) {
-        originalHighlightFacesByLabel(label);
-        this.updateExportSelectedMeshButtonVisibility();
-    };
+    // Remove override of highlightFacesByLabel to avoid calling non-existent method
+    // The old highlightFacesByLabel method was replaced by highlightFacesByLabels
+    // So remove this override to prevent runtime errors
 
     // Add event listener for "end session" button
     const endSessionButton = document.getElementById('end-session-button');
@@ -4067,3 +3981,161 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     }
 });
+
+// Add new methods to MeshViewer prototype for modal dialog and label assignment
+
+MeshViewer.prototype.showAssignLabelModal = function() {
+    if (document.getElementById('assign-label-modal')) {
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'assign-label-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '10000';
+
+    const dialog = document.createElement('div');
+    dialog.style.backgroundColor = '#f0f0f0';
+    dialog.style.padding = '25px';
+    dialog.style.borderRadius = '10px';
+    dialog.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
+    dialog.style.textAlign = 'center';
+    dialog.style.minWidth = '256px';
+
+    const message = document.createElement('p');
+    message.textContent = 'Assign Label?';
+    message.style.marginBottom = '40px';
+    message.style.fontSize = '20px';
+    message.style.fontWeight = '700';
+    message.style.color = '#333';
+
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.style.display = 'flex';
+    buttonsDiv.style.justifyContent = 'space-around';
+
+    const yesButton = document.createElement('button');
+    yesButton.textContent = 'Yes';
+    yesButton.style.padding = '10px 20px';
+    yesButton.style.fontSize = '18px';
+    yesButton.style.cursor = 'pointer';
+    yesButton.style.backgroundColor = '#28a745';
+    yesButton.style.color = 'white';
+    yesButton.style.border = 'none';
+    yesButton.style.borderRadius = '5px';
+    yesButton.style.transition = 'background-color 0.3s ease';
+
+    yesButton.addEventListener('mouseenter', () => {
+        yesButton.style.backgroundColor = '#218838';
+    });
+    yesButton.addEventListener('mouseleave', () => {
+        yesButton.style.backgroundColor = '#28a745';
+    });
+
+    const noButton = document.createElement('button');
+    noButton.textContent = 'No';
+    noButton.style.padding = '10px 20px';
+    noButton.style.fontSize = '18px';
+    noButton.style.cursor = 'pointer';
+    noButton.style.backgroundColor = '#dc3545';
+    noButton.style.color = 'white';
+    noButton.style.border = 'none';
+    noButton.style.borderRadius = '5px';
+    noButton.style.transition = 'background-color 0.3s ease';
+
+    noButton.addEventListener('mouseenter', () => {
+        noButton.style.backgroundColor = '#c82333';
+    });
+    noButton.addEventListener('mouseleave', () => {
+        noButton.style.backgroundColor = '#dc3545';
+    });
+
+    buttonsDiv.appendChild(yesButton);
+    buttonsDiv.appendChild(noButton);
+    dialog.appendChild(message);
+    dialog.appendChild(buttonsDiv);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    const cleanup = () => {
+        this.assignLabelDialogShown = false;
+        if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+        }
+    };
+
+    yesButton.addEventListener('click', () => {
+        cleanup();
+        this.showAssignLabelDialog();
+    });
+
+    noButton.addEventListener('click', () => {
+        cleanup();
+        this.clearSelectionAndReset();
+    });
+};
+
+MeshViewer.prototype.showAssignLabelDialog = function() {
+    let labelName = prompt('Enter label name:');
+    if (labelName !== null) {
+        labelName = labelName.trim();
+        if (labelName.length > 0) {
+            if (this.selectedFaces.size === 0) {
+                alert('No faces selected to label.');
+                return;
+            }
+
+            for (const labelEntry of this.labels) {
+                labelEntry.faces = labelEntry.faces.filter(faceIndex => !this.selectedFaces.has(faceIndex));
+            }
+
+            this.labels = this.labels.filter(labelEntry => labelEntry.faces.length > 0);
+
+            let labelEntry = this.labels.find(l => l.label === labelName);
+            if (!labelEntry) {
+                labelEntry = { label: labelName, faces: [] };
+                this.labels.push(labelEntry);
+            }
+
+            const newFaces = Array.from(this.selectedFaces).filter(faceIndex => !labelEntry.faces.includes(faceIndex));
+            const batchSize = 1000;
+            for (let i = 0; i < newFaces.length; i += batchSize) {
+                const batch = newFaces.slice(i, i + batchSize);
+                labelEntry.faces.push(...batch);
+            }
+
+            for (const faceIndex of this.selectedFaces) {
+                this.labeledFacesMap.set(faceIndex, labelName);
+            }
+
+            this.selectedFaces.clear();
+            this.labelInput.value = '';
+
+            this.highlightSelectedFaces();
+            this.populateLabelList();
+
+            alert(`Label "${labelName}" assigned to selected faces.`);
+            this.clearSelectionAndReset();
+        } else {
+            this.clearSelectionAndReset();
+        }
+    } else {
+        this.clearSelectionAndReset();
+    }
+};
+
+MeshViewer.prototype.clearSelectionAndReset = function() {
+    this.selectedFaces.clear();
+    this.finalizedSelectedFaces.clear();
+    this.clearSelectionHighlight();
+    this.selectionFinalized = false;
+    this.assignLabelDialogShown = false;
+    this.labelInput.value = '';
+};
