@@ -2311,99 +2311,6 @@ if (removeAllImagesButton) {
                     }
                 }
             });
-
-        // New variables for polygon point editing
-        this.selectedPolygonPointIndex = null;
-        this.isDraggingPolygonPoint = false;
-
-        // Mouse down to select polygon point for dragging
-        this.renderer.domElement.addEventListener('mousedown', (event) => {
-            if (!this.labelingMode || this.selectionFinalized) return;
-            const rect = this.renderer.domElement.getBoundingClientRect();
-            const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            const clickThreshold = 0.05; // Adjust threshold for point selection
-
-            // Find closest polygon point within threshold
-            let closestIndex = null;
-            let minDist = Infinity;
-            for (let i = 0; i < this.selectionPolygon.length; i++) {
-                const p = this.selectionPolygon[i];
-                const dx = p.x - mouseX;
-                const dy = p.y - mouseY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < clickThreshold && dist < minDist) {
-                    closestIndex = i;
-                    minDist = dist;
-                }
-            }
-
-            if (closestIndex !== null) {
-                this.selectedPolygonPointIndex = closestIndex;
-                this.isDraggingPolygonPoint = true;
-                event.preventDefault();
-            }
-        });
-
-        // Mouse move to drag selected polygon point
-        this.renderer.domElement.addEventListener('mousemove', (event) => {
-            if (!this.labelingMode || this.selectionFinalized) return;
-            if (!this.isDraggingPolygonPoint || this.selectedPolygonPointIndex === null) return;
-
-            const rect = this.renderer.domElement.getBoundingClientRect();
-            const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            // Update polygon point position
-            this.selectionPolygon[this.selectedPolygonPointIndex].x = mouseX;
-            this.selectionPolygon[this.selectedPolygonPointIndex].y = mouseY;
-
-            // Update corresponding 3D point by unprojecting
-            const ndcVector = new THREE.Vector3(mouseX, mouseY, 0);
-            ndcVector.unproject(this.camera);
-            let localPoint = ndcVector;
-            if (this.pivot) {
-                localPoint = this.pivot.worldToLocal(ndcVector.clone());
-            }
-            this.selectionPolygon3D[this.selectedPolygonPointIndex] = localPoint;
-
-            // Update polygon visuals
-            this.update3DPolygonFillMesh();
-            this.update3DPolygonOutlineLine();
-            this.highlightSelectionPolygon();
-
-            event.preventDefault();
-        });
-
-        // Mouse up to stop dragging polygon point
-        this.renderer.domElement.addEventListener('mouseup', (event) => {
-            if (!this.labelingMode || this.selectionFinalized) return;
-            if (this.isDraggingPolygonPoint) {
-                this.isDraggingPolygonPoint = false;
-                this.selectedPolygonPointIndex = null;
-                event.preventDefault();
-            }
-        });
-
-        // Keydown event to delete selected polygon point
-        window.addEventListener('keydown', (event) => {
-            if (!this.labelingMode || this.selectionFinalized) return;
-            if (event.key === 'Delete' || event.key === 'Del') {
-                if (this.selectedPolygonPointIndex !== null && this.selectionPolygon.length > 3) {
-                    // Remove point from polygon arrays
-                    this.selectionPolygon.splice(this.selectedPolygonPointIndex, 1);
-                    this.selectionPolygon3D.splice(this.selectedPolygonPointIndex, 1);
-
-                    // Update polygon visuals
-                    this.update3DPolygonFillMesh();
-                    this.update3DPolygonOutlineLine();
-                    this.highlightSelectionPolygon();
-
-                    this.selectedPolygonPointIndex = null;
-                    event.preventDefault();
-                }
-            }
-        });
     }
 
     sendPolygonToBackendForSelection() {
@@ -2425,15 +2332,6 @@ if (removeAllImagesButton) {
 
         // Perform polygon face selection locally
         const polygonPoints = this.selectionPolygon.map(p => ({x: p.x, y: p.y}));
-
-        // Compute polygon bounding box for quick rejection
-        let polyMinX = Infinity, polyMinY = Infinity, polyMaxX = -Infinity, polyMaxY = -Infinity;
-        for (const p of polygonPoints) {
-            if (p.x < polyMinX) polyMinX = p.x;
-            if (p.y < polyMinY) polyMinY = p.y;
-            if (p.x > polyMaxX) polyMaxX = p.x;
-            if (p.y > polyMaxY) polyMaxY = p.y;
-        }
 
         this.selectedFaces.clear();
 
@@ -2476,17 +2374,6 @@ if (removeAllImagesButton) {
                     const pA = {x: screenA.x, y: screenA.y};
                     const pB = {x: screenB.x, y: screenB.y};
                     const pC = {x: screenC.x, y: screenC.y};
-
-                    // Compute bounding box of triangle in screen space
-                    const triMinX = Math.min(pA.x, pB.x, pC.x);
-                    const triMinY = Math.min(pA.y, pB.y, pC.y);
-                    const triMaxX = Math.max(pA.x, pB.x, pC.x);
-                    const triMaxY = Math.max(pA.y, pB.y, pC.y);
-
-                    // Quick reject if triangle bounding box does not intersect polygon bounding box
-                    if (triMaxX < polyMinX || triMinX > polyMaxX || triMaxY < polyMinY || triMinY > polyMaxY) {
-                        continue;
-                    }
 
                     // Check if triangle centroid is inside polygon using pointInPolygon helper
                     const centroid = {
@@ -2685,25 +2572,8 @@ if (removeAllImagesButton) {
             return;
         }
 
-        // Helper function to interpolate points for smoothing
-        function interpolatePoints3D(points, numInterpolations) {
-            const smoothedPoints = [];
-            for (let i = 0; i < points.length; i++) {
-                const current = points[i];
-                const next = points[(i + 1) % points.length];
-                smoothedPoints.push(current.clone());
-                for (let j = 1; j <= numInterpolations; j++) {
-                    const t = j / (numInterpolations + 1);
-                    const interpolated = new THREE.Vector3().lerpVectors(current, next, t);
-                    smoothedPoints.push(interpolated);
-                }
-            }
-            return smoothedPoints;
-        }
-
         // Create array of points for line geometry, closing the loop
-        let points = this.selectionPolygon3D.map(p => new THREE.Vector3(p.x, p.y, p.z));
-        points = interpolatePoints3D(points, 5); // Add 5 interpolated points between each vertex
+        const points = this.selectionPolygon3D.map(p => new THREE.Vector3(p.x, p.y, p.z));
         points.push(points[0].clone()); // Close the loop
 
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
