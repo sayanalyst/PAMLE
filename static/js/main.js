@@ -3026,17 +3026,18 @@ this.clearHighlightForLabel = function(label) {
                 }
             }
 
-            labelText.addEventListener('click', () => {
-                if (this.toggledLabels.has(labelEntry.label)) {
-                    this.toggledLabels.delete(labelEntry.label);
-                    this.highlightMarkersByLabel();
-                    this.highlightFacesByLabels();
-                } else {
-                    this.toggledLabels.add(labelEntry.label);
-                    this.highlightMarkersByLabel();
-                    this.highlightFacesByLabels();
-                }
-            });
+            // Disable click event on label text in label dropdown to prevent toggling
+            // labelText.addEventListener('click', () => {
+            //     if (this.toggledLabels.has(labelEntry.label)) {
+            //         this.toggledLabels.delete(labelEntry.label);
+            //         this.highlightMarkersByLabel();
+            //         this.highlightFacesByLabels();
+            //     } else {
+            //         this.toggledLabels.add(labelEntry.label);
+            //         this.highlightMarkersByLabel();
+            //         this.highlightFacesByLabels();
+            //     }
+            // });
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '×';
