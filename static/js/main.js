@@ -2125,22 +2125,27 @@ if (removeAllImagesButton) {
             }
         });
 
-        // Add event listener for label list button to toggle dropdown visibility
-        const labelListButton = document.getElementById('label-list-button');
-        if (labelListButton && this.labelListDropdown) {
-            labelListButton.addEventListener('click', () => {
-                if (this.labelListDropdown.style.display === 'block') {
-                    this.labelListDropdown.style.display = 'none';
-                    // Hide export selected mesh button when dropdown is hidden
-                    const exportSelectedMeshButton = document.getElementById('export-selected-mesh');
-                    if (exportSelectedMeshButton) {
-                        exportSelectedMeshButton.style.display = 'none';
-                    }
-                } else {
-                    this.labelListDropdown.style.display = 'block';
-                }
-            });
+// Add event listener for label list button to toggle dropdown visibility
+const labelListButton = document.getElementById('label-list-button');
+if (labelListButton && this.labelListDropdown) {
+    labelListButton.addEventListener('click', () => {
+        if (this.labelListDropdown.style.display === 'block') {
+            this.labelListDropdown.style.display = 'none';
+            // Hide export selected mesh button when dropdown is hidden
+            const exportSelectedMeshButton = document.getElementById('export-selected-mesh');
+            if (exportSelectedMeshButton) {
+                exportSelectedMeshButton.style.display = 'none';
+            }
+        } else {
+            this.labelListDropdown.style.display = 'block';
+            // If currentlyHighlightedLabel is null but toggledLabels has entries, set it and update button visibility
+            if (!this.currentlyHighlightedLabel && this.toggledLabels.size > 0) {
+                this.currentlyHighlightedLabel = this.toggledLabels.values().next().value;
+                this.updateExportSelectedMeshButtonVisibility();
+            }
         }
+    });
+}
 
         this.selectionPolygon = [];
         this.selectionPolygon3D = [];
@@ -2928,18 +2933,84 @@ if (removeAllImagesButton) {
             toggleCheckbox.style.marginRight = '8px';
             toggleCheckbox.checked = this.toggledLabels.has(labelEntry.label);
 
-            toggleCheckbox.addEventListener('click', (event) => {
-                event.stopPropagation();
-                if (toggleCheckbox.checked) {
-                    this.toggledLabels.add(labelEntry.label);
-                    this.highlightMarkersByLabel();
-                    this.highlightFacesByLabels();
-                } else {
-                    this.toggledLabels.delete(labelEntry.label);
-                    this.highlightMarkersByLabel();
-                    this.highlightFacesByLabels();
-                }
-            });
+toggleCheckbox.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (toggleCheckbox.checked) {
+        this.toggledLabels.add(labelEntry.label);
+        this.currentlyHighlightedLabel = labelEntry.label;  // Set currentlyHighlightedLabel to toggled label
+        this.highlightMarkersByLabel();
+        this.highlightFacesByLabels();
+        this.updateExportSelectedMeshButtonVisibility();
+    } else {
+        this.toggledLabels.delete(labelEntry.label);
+        // Clear highlight for this label immediately when toggled off
+        this.clearHighlightForLabel(labelEntry.label);
+        // If no toggled labels remain, clear currentlyHighlightedLabel, else set to first toggled label
+        if (this.toggledLabels.size === 0) {
+            this.currentlyHighlightedLabel = null;
+        } else {
+            this.currentlyHighlightedLabel = this.toggledLabels.values().next().value;
+        }
+        this.highlightMarkersByLabel();
+        this.highlightFacesByLabels();
+        this.updateExportSelectedMeshButtonVisibility();
+    }
+});
+
+this.clearHighlightForLabel = function(label) {
+    if (!this.mesh || !this.labels) return;
+    const labelEntry = this.labels.find(l => l.label === label);
+    if (!labelEntry) return;
+
+    this.mesh.traverse((child) => {
+        if (!child.isMesh) return;
+        const geometry = child.geometry;
+        if (!geometry || !geometry.index || !geometry.attributes.color) return;
+
+        const index = geometry.index;
+        const colorAttr = geometry.attributes.color;
+
+        // Calculate face index offset for this child
+        let faceIndexOffset = 0;
+        for (const sibling of this.mesh.children) {
+            if (sibling === child) break;
+            if (sibling.geometry && sibling.geometry.index) {
+                faceIndexOffset += sibling.geometry.index.count / 3;
+            }
+        }
+
+        if (!this.originalVertexColors.has(child)) return;
+        const originalColors = this.originalVertexColors.get(child);
+        if (!originalColors) return;
+
+        for (const globalFaceIndex of labelEntry.faces) {
+            const localFaceIndex = globalFaceIndex - faceIndexOffset;
+            if (localFaceIndex < 0 || localFaceIndex * 3 + 2 >= index.count) continue;
+
+            const a = index.getX(localFaceIndex * 3);
+            const b = index.getX(localFaceIndex * 3 + 1);
+            const c = index.getX(localFaceIndex * 3 + 2);
+
+            // Restore original colors for vertices a,b,c
+            colorAttr.setXYZ(a,
+                originalColors[a * 3],
+                originalColors[a * 3 + 1],
+                originalColors[a * 3 + 2]
+            );
+            colorAttr.setXYZ(b,
+                originalColors[b * 3],
+                originalColors[b * 3 + 1],
+                originalColors[b * 3 + 2]
+            );
+            colorAttr.setXYZ(c,
+                originalColors[c * 3],
+                originalColors[c * 3 + 1],
+                originalColors[c * 3 + 2]
+            );
+        }
+        colorAttr.needsUpdate = true;
+    });
+}
 
             const labelText = document.createElement('span');
             labelText.textContent = labelEntry.label;
@@ -3181,7 +3252,8 @@ if (removeAllImagesButton) {
         const exportButton = document.getElementById('export-selected-mesh');
         if (!exportButton) return;
 
-        if (this.currentlyHighlightedLabel) {
+        // Show export button if at least one label is toggled
+        if (this.toggledLabels && this.toggledLabels.size > 0) {
             exportButton.style.display = 'inline-block';
         } else {
             exportButton.style.display = 'none';
@@ -3343,7 +3415,7 @@ if (removeAllImagesButton) {
         alert('Mesh Successfully Exported');
     }
 
-    highlightFacesByLabels() {
+highlightFacesByLabels() {
         if (!this.mesh || !this.labels) return;
 
         // Clear previous selection to highlight only toggled labels' faces
@@ -3354,6 +3426,7 @@ if (removeAllImagesButton) {
             // No toggled labels, clear highlights and return
             this.clearSelectionHighlight();
             this.currentlyHighlightedLabel = null;
+            this.updateExportSelectedMeshButtonVisibility();
             return;
         }
 
@@ -3369,8 +3442,13 @@ if (removeAllImagesButton) {
         // Highlight selected faces
         this.highlightSelectedFaces();
 
-        // Clear currentlyHighlightedLabel since multiple labels can be toggled
-        this.currentlyHighlightedLabel = null;
+        // Set currentlyHighlightedLabel to first toggled label if any toggled labels exist
+        if (this.toggledLabels.size === 1) {
+            this.currentlyHighlightedLabel = this.toggledLabels.values().next().value;
+        } else {
+            this.currentlyHighlightedLabel = null;
+        }
+        this.updateExportSelectedMeshButtonVisibility();
     }
 
     deleteLabel(label) {
