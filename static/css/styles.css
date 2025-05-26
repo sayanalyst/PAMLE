@@ -276,3 +276,53 @@ body {
   border-radius: 3px;
   white-space: nowrap;
 }
+
+/* Welcome screen overlay */
+#welcome-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: black;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 20000;
+  opacity: 1;
+  transition: opacity 1s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+#welcome-text {
+  opacity: 0;
+  animation: fadeInText 1.5s ease forwards;
+}
+
+#welcome-text h1 {
+  font-size: 5rem;
+  font-weight: 600;
+  margin: 0;
+  margin-bottom: 0.5rem;
+  user-select: none;
+}
+
+#welcome-text p {
+  font-size: 2rem;
+  font-weight: 300;
+  margin: 0;
+  user-select: none;
+}
+
+@keyframes fadeInText {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
