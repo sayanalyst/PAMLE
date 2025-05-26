@@ -18,6 +18,37 @@ class MeshViewer {
         // New property to store flagged points and their marker meshes
         this.flaggedPoints = [];
 
+        // Add event listener for orbit controls toggle icon
+        const orbitControlsIcon = document.getElementById('toggle-orbitcontrols-icon');
+        if (orbitControlsIcon) {
+            // Hide icon initially
+            orbitControlsIcon.style.display = 'none';
+
+            // Set icon innerHTML to four-direction plus SVG
+            orbitControlsIcon.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;">
+                    <path d="M12 2V22M2 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `;
+            orbitControlsIcon.style.cursor = 'pointer';
+            orbitControlsIcon.title = 'Enable Orbit Controls';
+
+            orbitControlsIcon.addEventListener('click', () => {
+                if (!this.labelingMode) return; // Only toggle in labeling mode
+                this.orbitControlsEnabledInLabeling = !this.orbitControlsEnabledInLabeling;
+                this.controls.enabled = this.orbitControlsEnabledInLabeling;
+                this.controls.enableRotate = this.orbitControlsEnabledInLabeling;
+                this.controls.enablePan = this.orbitControlsEnabledInLabeling;
+                this.controls.enableZoom = this.orbitControlsEnabledInLabeling;
+                this.updateOrbitControlsIcon();
+                if (this.orbitControlsEnabledInLabeling) {
+                    alert('Orbit controls enabled.');
+                } else {
+                    alert('Orbit controls disabled.');
+                }
+            });
+        }
+
         this.currentMeshURL = null; // Store currently loaded mesh URL
 
         // Assign label input container element
@@ -1002,6 +1033,7 @@ if (removeAllImagesButton) {
 
         // Add mouse event listeners for mesh rotation
         this.renderer.domElement.addEventListener('mousedown', (event) => {
+            if (this.labelingMode) return;
             // Start drag for left or right mouse button
             if (event.button === 0 || event.button === 2) {
                 this.isDraggingMesh = true;
@@ -1015,6 +1047,7 @@ if (removeAllImagesButton) {
         });
 
         this.renderer.domElement.addEventListener('mousemove', (event) => {
+            if (this.labelingMode) return;
             if (!this.isDraggingMesh) return;
 
             const deltaX = event.clientX - this.previousMousePosition.x;
@@ -1041,6 +1074,7 @@ if (removeAllImagesButton) {
         });
 
         this.renderer.domElement.addEventListener('mouseup', (event) => {
+            if (this.labelingMode) return;
             if (event.button === 0 || event.button === 2) {
                 this.isDraggingMesh = false;
                 this.dragButton = null;
@@ -1051,6 +1085,7 @@ if (removeAllImagesButton) {
         });
 
         this.renderer.domElement.addEventListener('mouseleave', () => {
+            if (this.labelingMode) return;
             this.isDraggingMesh = false;
             this.dragButton = null;
             this.isDragging = false; // Reset dragging flag on mouse leave
@@ -2029,22 +2064,36 @@ if (removeAllImagesButton) {
 
         this.toggleLabelingButton.addEventListener('click', async () => {
             this.labelingMode = !this.labelingMode;
+            const orbitControlsIcon = document.getElementById('toggle-orbitcontrols-icon');
             if (this.labelingMode) {
                 this.toggleLabelingButton.classList.add('active');
                 this.labelInputContainer.style.display = 'block';
+                if (orbitControlsIcon) orbitControlsIcon.style.display = 'inline-block';
                 this.selectionPolygon = [];
                 this.selectedFaces.clear();
                 this.clearSelectionHighlight();
                 this.controls.enabled = false;
                 this.controls.enabled = true;
                 this.controls.enableZoom = true;
-                this.controls.enableRotate = true;
-                // Enable pan only with Shift key pressed
+                this.controls.enableRotate = false;
                 this.controls.enablePan = false;
+                this.orbitControlsEnabledInLabeling = false; // Initialize orbit controls toggle state
                 // Clear toggledLabels to prevent automatic showing of marked features
                 this.toggledLabels.clear();
                 // Reset showFeaturesActive to false to keep button state consistent
                 this.showFeaturesActive = false;
+                this.updateOrbitControlsIcon = () => {
+                    const icon = document.getElementById('toggle-orbitcontrols-icon');
+                    if (!icon) return;
+                    if (this.orbitControlsEnabledInLabeling) {
+                        icon.style.color = '#4CAF50'; // Green when enabled
+                        icon.title = 'Disable Orbit Controls';
+                    } else {
+                        icon.style.color = '#eee'; // Default color when disabled
+                        icon.title = 'Enable Orbit Controls';
+                    }
+                };
+                this.updateOrbitControlsIcon();
 
                 // Show spinner and reload mesh after toggling on labeling mode
                 if (this.loadingOverlay) {
@@ -2104,6 +2153,7 @@ if (removeAllImagesButton) {
             } else {
                 this.toggleLabelingButton.classList.remove('active');
                 this.labelInputContainer.style.display = 'none';
+                if (orbitControlsIcon) orbitControlsIcon.style.display = 'none';
                 this.selectionPolygon = [];
                 this.selectedFaces.clear();
                 this.clearSelectionHighlight();
@@ -2117,8 +2167,8 @@ if (removeAllImagesButton) {
                 this.controls.enabled = true;
                 this.controls.enabled = true;
                 this.controls.enableZoom = true;
-                this.controls.enableRotate = true;
-                this.controls.enablePan = true;
+                this.controls.enableRotate = false;
+                this.controls.enablePan = false;
 
                 // Remove event listeners for pan key toggling
                 if (this._panKeyDownListener) {
@@ -2218,14 +2268,15 @@ if (labelListButton && this.labelListDropdown) {
         });
         */
 
-        this.renderer.domElement.addEventListener('contextmenu', (event) => {
+this.renderer.domElement.addEventListener('contextmenu', (event) => {
             if (!this.labelingMode) return;
+            if (this.orbitControlsEnabledInLabeling) return; // suspend polygon selection in orbit controls mode
             event.preventDefault();
             this.sendPolygonToBackendForSelection();
         });
 
         // Add event listener for mouse click to add green diamond marker when markFeatureMode is active
-        this.renderer.domElement.addEventListener('click', (event) => {
+this.renderer.domElement.addEventListener('click', (event) => {
             if (this.markFeatureMode) {
                 event.preventDefault();
 
@@ -2354,6 +2405,10 @@ if (labelListButton && this.labelListDropdown) {
                 } else {
                     // Polygonal selection click behavior
                     if (!this.labelingMode) return;
+                    if (this.orbitControlsEnabledInLabeling) {
+                        // Suspend polygon selection when orbit controls are enabled
+                        return;
+                    }
                     if (this.selectionFinalized) {
                         if (!this.assignLabelDialogShown && this.selectedFaces.size > 0) {
                             this.assignLabelDialogShown = true;
