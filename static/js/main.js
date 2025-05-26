@@ -1,5 +1,3 @@
-console.log('main.js loaded');
-
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -3799,6 +3797,9 @@ highlightMarkersByLabel() {
                             mesh.userData.onPointerOutHandler(event);
                         }
                     });
+                } else {
+                    // Ensure delete cross is hidden initially
+                    mesh.userData.deleteCrossElement.style.display = 'none';
                 }
             } else {
                 console.log(`Hiding marker for label ${markerLabel}`);
