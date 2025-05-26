@@ -3026,7 +3026,7 @@ this.clearHighlightForLabel = function(label) {
                 }
             }
 
-            // Disable click event on label text in label dropdown to prevent toggling
+            // Removed click event listener on labelText to disable toggling label on label text click
             // labelText.addEventListener('click', () => {
             //     if (this.toggledLabels.has(labelEntry.label)) {
             //         this.toggledLabels.delete(labelEntry.label);
