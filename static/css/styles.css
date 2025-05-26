@@ -284,7 +284,9 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: black;
+  background:
+    /* main dark gradient */
+    linear-gradient(135deg, #000000 60%, #111111 100%);
   color: white;
   display: flex;
   justify-content: center;
@@ -317,11 +319,19 @@ font-weight: 400;
 margin: 0;
 user-select: none;
 text-align: center;
-background: linear-gradient(180deg, #b700ff, #00ff6a); /* brighter purple and green */
+background: linear-gradient(0deg, #b700ff, #00ff6a); /* brighter purple and green */
 -webkit-background-clip: text;
 -webkit-text-fill-color: transparent;
 background-clip: text;
 color: transparent;
+}
+
+.gradient-text {
+  background: linear-gradient(180deg, #b700ff, #00ff6a); /* brighter purple and green */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
 }
 
 @keyframes fadeInText {
