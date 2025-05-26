@@ -33,20 +33,23 @@ class MeshViewer {
             orbitControlsIcon.style.cursor = 'pointer';
             orbitControlsIcon.title = 'Enable Orbit Controls';
 
-            orbitControlsIcon.addEventListener('click', () => {
-                if (!this.labelingMode) return; // Only toggle in labeling mode
-                this.orbitControlsEnabledInLabeling = !this.orbitControlsEnabledInLabeling;
-                this.controls.enabled = this.orbitControlsEnabledInLabeling;
-                this.controls.enableRotate = this.orbitControlsEnabledInLabeling;
-                this.controls.enablePan = this.orbitControlsEnabledInLabeling;
-                this.controls.enableZoom = this.orbitControlsEnabledInLabeling;
-                this.updateOrbitControlsIcon();
-                if (this.orbitControlsEnabledInLabeling) {
-                    alert('Orbit controls enabled.');
-                } else {
-                    alert('Orbit controls disabled.');
-                }
-            });
+orbitControlsIcon.addEventListener('click', () => {
+    if (!this.labelingMode) return; // Only toggle in labeling mode
+    this.orbitControlsEnabledInLabeling = !this.orbitControlsEnabledInLabeling;
+    this.controls.enabled = this.orbitControlsEnabledInLabeling;
+    this.controls.enableRotate = this.orbitControlsEnabledInLabeling;
+    this.controls.enablePan = this.orbitControlsEnabledInLabeling;
+    this.controls.enableZoom = this.orbitControlsEnabledInLabeling;
+    this.updateOrbitControlsIcon();
+    // Removed alert calls to prevent fullscreen toggle off
+    /*
+    if (this.orbitControlsEnabledInLabeling) {
+        alert('Orbit controls enabled.');
+    } else {
+        alert('Orbit controls disabled.');
+    }
+    */
+});
         }
 
         this.currentMeshURL = null; // Store currently loaded mesh URL
