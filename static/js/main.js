@@ -1413,6 +1413,30 @@ if (removeAllImagesButton) {
     }
 
     async init() {
+        // Show welcome screen and animate camera zoom out before normal init
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) {
+            // Set initial camera position close for zoom out effect
+            const initialZ = 10;
+            const targetZ = 60;
+            this.camera.position.z = initialZ;
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+
+            // Animate camera zoom out with easing over 2 seconds
+            await this.animateCameraZoomOut(initialZ, targetZ, 2000);
+
+            // Fade out welcome screen
+            welcomeScreen.style.transition = 'opacity 1s ease';
+            welcomeScreen.style.opacity = '0';
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            welcomeScreen.style.display = 'none';
+
+            // Set camera to target position finally
+            this.camera.position.z = targetZ;
+            this.controls.update();
+        }
+
         this.setupLoadingUI();
         // Ensure loading overlay is hidden on startup
         if (this.loadingOverlay) {
@@ -1551,6 +1575,27 @@ if (removeAllImagesButton) {
                     // this.labelInputContainer.style.display = 'none';
                 }
             }
+        });
+    }
+
+    async animateCameraZoomOut(startZ, endZ, duration) {
+        return new Promise((resolve) => {
+            const startTime = performance.now();
+            const animate = (time) => {
+                const elapsed = time - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const easeT = 1 - Math.pow(1 - t, 3);
+                this.camera.position.z = startZ + (endZ - startZ) * easeT;
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                if (t < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    resolve();
+                }
+            };
+            requestAnimationFrame(animate);
         });
     }
 
