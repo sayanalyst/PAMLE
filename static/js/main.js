@@ -1444,7 +1444,8 @@ if (removeAllImagesButton) {
         }
         // Do not load default mesh immediately; wait for user upload
         // await this.loadMesh('/static/data/mesh_12.gltf');
-        await this.loadAndDisplayCRSMetadata('/static/data/meta.json');
+        // Removed initial call to loadAndDisplayCRSMetadata to show meta.json info only after mesh load
+        // await this.loadAndDisplayCRSMetadata('/static/data/meta.json');
         // Removed loadLabels call here to defer label loading until after mesh load
         this.setupEventListeners();
 
@@ -1498,6 +1499,8 @@ if (removeAllImagesButton) {
                         }, 100);
                     }
                     await this.loadMesh(this.currentMeshURL);
+                    // Load meta.json info after mesh is loaded
+                    await this.loadAndDisplayCRSMetadata('/static/data/meta.json');
                     // Load labels after mesh is loaded
                     await this.loadLabels();
                     this.controls.update();
