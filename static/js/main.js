@@ -1522,37 +1522,10 @@ if (removeAllImagesButton) {
                     return;
                 }
                 try {
-                    // Reset loading percentage text
-                    if (this.loadingPercentage) {
-                        this.loadingPercentage.innerText = '0%';
-                    }
-                    // Show loading overlay after a short delay to avoid flicker if load is fast
-                    if (this.loadingOverlay) {
-                        setTimeout(() => {
-                            if (this.loadingOverlay) {
-                                this.loadingOverlay.style.display = 'flex';
-                            }
-                        }, 100);
-                    }
-                    await this.loadMesh(this.currentMeshURL);
-                    // Load meta.json info after mesh is loaded
-                    await this.loadAndDisplayCRSMetadata('/static/data/meta.json');
-                    // Load labels after mesh is loaded
-                    await this.loadLabels();
-                    this.controls.update();
-                    this.renderer.render(this.scene, this.camera);
-                    // Hide upload container after loading mesh
-                    uploadMeshContainer.style.display = 'none';
-                    // Hide file input and load button after loading mesh
-                    meshUploadInput.style.display = 'none';
-                    loadMeshButton.style.display = 'none';
+                    await this.uploadAndConvertMesh(meshUploadInput.files[0], uploadMeshContainer, meshUploadInput, loadMeshButton);
                 } catch (error) {
-                    console.error('Error loading uploaded mesh:', error);
-                    alert('Failed to load the selected mesh file.');
-                } finally {
-                    if (this.loadingOverlay) {
-                        this.loadingOverlay.style.display = 'none';
-                    }
+                    console.error('Error uploading and converting mesh:', error);
+                    alert('Failed to upload and convert the selected mesh file.');
                 }
             });
         }
@@ -1614,6 +1587,93 @@ if (removeAllImagesButton) {
                     // this.labelInputContainer.style.display = 'none';
                 }
             }
+        });
+    }
+
+    async uploadAndConvertMesh(file, uploadMeshContainer, meshUploadInput, loadMeshButton) {
+        if (!file) {
+            alert('No mesh file selected.');
+            return;
+        }
+
+        if (!this.loadingOverlay || !this.loadingPercentage) {
+            console.warn('Loading overlay or loading percentage element not found.');
+            return;
+        }
+
+        this.loadingPercentage.innerText = '0%';
+        this.loadingOverlay.style.display = 'flex';
+
+        const formData = new FormData();
+        formData.append('meshfile', file);
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload_mesh_and_convert', true);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    this.loadingPercentage.innerText = percentComplete + '%';
+                }
+            };
+
+            xhr.onload = async () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        const convertedUrl = data.converted_url;
+
+                        if (!convertedUrl) {
+                            throw new Error('No converted mesh URL returned from server');
+                        }
+
+                        // Load the converted mesh using existing loadMesh method
+                        await this.loadMesh(convertedUrl);
+
+                        // Load meta.json info after mesh is loaded
+                        await this.loadAndDisplayCRSMetadata('/static/data/meta.json');
+
+                        // Load labels after mesh is loaded
+                        await this.loadLabels();
+
+                        this.controls.update();
+                        this.renderer.render(this.scene, this.camera);
+
+                        // Hide upload container and file input and load button after loading mesh
+                        if (uploadMeshContainer) uploadMeshContainer.style.display = 'none';
+                        if (meshUploadInput) meshUploadInput.style.display = 'none';
+                        if (loadMeshButton) loadMeshButton.style.display = 'none';
+
+                        resolve();
+                    } catch (error) {
+                        console.error('Error processing response:', error);
+                        alert('Error processing server response: ' + error.message);
+                        reject(error);
+                    }
+                } else {
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        alert('Error uploading or converting mesh: ' + (errorData.error || 'Unknown error'));
+                    } catch {
+                        alert('Error uploading or converting mesh: Unknown error');
+                    }
+                    reject(new Error('Upload failed with status ' + xhr.status));
+                }
+                if (this.loadingOverlay) {
+                    this.loadingOverlay.style.display = 'none';
+                }
+            };
+
+            xhr.onerror = () => {
+                alert('Network error during mesh upload.');
+                if (this.loadingOverlay) {
+                    this.loadingOverlay.style.display = 'none';
+                }
+                reject(new Error('Network error during mesh upload'));
+            };
+
+            xhr.send(formData);
         });
     }
 
