@@ -286,7 +286,7 @@ import subprocess
 from werkzeug.utils import secure_filename
 import uuid
 
-ALLOWED_EXTENSIONS = {'ply', 'obj'}
+ALLOWED_EXTENSIONS = {'ply', 'obj', 'gltf'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -312,6 +312,11 @@ def upload_mesh_and_convert():
         file.save(saved_filepath)
     except Exception as e:
         return jsonify({'error': f'Failed to save uploaded file: {str(e)}'}), 500
+
+    # If the uploaded file is a .gltf file, skip conversion and return the file URL directly
+    if saved_filename.lower().endswith('.gltf'):
+        converted_url = f"/static/uploads/meshes/{saved_filename}"
+        return jsonify({'message': 'No conversion needed for .gltf file', 'converted_url': converted_url}), 200
 
     # Prepare output gltf filename with _converted suffix
     base_name, _ = os.path.splitext(saved_filename)
