@@ -282,6 +282,66 @@ def shutdown():
     shutdown_server()
     return 'Server shutting down...', 200
 
+import subprocess
+from werkzeug.utils import secure_filename
+import uuid
+
+ALLOWED_EXTENSIONS = {'ply', 'obj'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload_mesh_and_convert', methods=['POST'])
+def upload_mesh_and_convert():
+    if 'meshfile' not in request.files:
+        return jsonify({'error': 'No mesh file part in the request'}), 400
+    file = request.files['meshfile']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Unsupported file extension'}), 400
+
+    upload_folder = os.path.join(app.root_path, 'static', 'uploads', 'meshes')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    original_filename = secure_filename(file.filename)
+    saved_filename = original_filename
+    saved_filepath = os.path.join(upload_folder, saved_filename)
+
+    try:
+        file.save(saved_filepath)
+    except Exception as e:
+        return jsonify({'error': f'Failed to save uploaded file: {str(e)}'}), 500
+
+    # Prepare output gltf filename with _converted suffix
+    base_name, _ = os.path.splitext(saved_filename)
+    output_filename = f"{base_name}_converted.gltf"
+    output_folder = os.path.join(app.root_path, 'static', 'data')
+    os.makedirs(output_folder, exist_ok=True)
+    output_filepath = os.path.join(output_folder, output_filename)
+
+    # Build the Open3D conversion command using the user's provided python one-liner
+    # Adjusted to use saved_filepath and output_filepath dynamically
+    python_command = (
+        "import open3d as o3d;"
+        f"mesh=o3d.io.read_triangle_mesh(r'{saved_filepath}');"
+        "mesh.compute_vertex_normals();"
+        "mesh=mesh if len(mesh.triangles)>0 else o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(o3d.io.read_point_cloud(r'{saved_filepath}'), o3d.utility.DoubleVector([0.005, 0.01, 0.02]));"
+        f"mesh=mesh.simplify_quadric_decimation(target_number_of_triangles=int(len(mesh.triangles)*0.5));"
+        "mesh.compute_vertex_normals();"
+        f"o3d.io.write_triangle_mesh(r'{output_filepath}', mesh)"
+    )
+
+    try:
+        # Run the python command as a subprocess
+        result = subprocess.run(['python3', '-c', python_command], capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        return jsonify({'error': f'Conversion failed: {e.stderr}'}), 500
+
+    # Return the URL to the converted gltf file
+    converted_url = f"/static/data/{output_filename}"
+    return jsonify({'message': 'Conversion successful', 'converted_url': converted_url}), 200
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     app.run(host='127.0.0.1', port=5001, debug=True)
