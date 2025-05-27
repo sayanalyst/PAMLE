@@ -337,8 +337,8 @@ def upload_mesh_and_convert():
     if sys.platform.startswith('win'):
         python_executable = 'python'
     try:
-        # Run the python command as a subprocess
-        result = subprocess.run([python_executable, '-c', python_command], capture_output=True, text=True, check=True)
+        # Run the python command inside the conda environment as a subprocess
+        result = subprocess.run(['conda', 'run', '-n', 'open3d-env', python_executable, '-c', python_command], capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         return jsonify({'error': f'Conversion failed: {e.stderr}'}), 500
 
