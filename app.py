@@ -332,9 +332,13 @@ def upload_mesh_and_convert():
         f"o3d.io.write_triangle_mesh(r'{output_filepath}', mesh)"
     )
 
+    import sys
+    python_executable = 'python3'
+    if sys.platform.startswith('win'):
+        python_executable = 'python'
     try:
         # Run the python command as a subprocess
-        result = subprocess.run(['python3', '-c', python_command], capture_output=True, text=True, check=True)
+        result = subprocess.run([python_executable, '-c', python_command], capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         return jsonify({'error': f'Conversion failed: {e.stderr}'}), 500
 
