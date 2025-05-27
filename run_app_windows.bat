@@ -76,10 +76,10 @@ if errorlevel 1 (
         exit /b 1
     )
     echo Installing dependencies...
-    conda install -y -n %ENVNAME% open3d flask flask-cors flask-compress numpy shapely -c conda-forge
+    conda install -y -n %ENVNAME% flask flask-cors flask-compress numpy shapely -c conda-forge
     if errorlevel 1 (
         echo Failed to install dependencies with conda. Trying pip...
-        conda run -n %ENVNAME% pip install flask flask-cors flask-compress numpy shapely trimesh
+        conda run -n %ENVNAME% pip install open3d flask flask-cors flask-compress numpy shapely trimesh
         if errorlevel 1 (
             echo Failed to install dependencies with pip.
             pause
