@@ -328,13 +328,16 @@ def upload_mesh_and_convert():
     # Build the Open3D conversion command using the user's provided python one-liner
     # Adjusted to use saved_filepath and output_filepath dynamically
     python_command = (
-        "import open3d as o3d;"
-        f"mesh=o3d.io.read_triangle_mesh(r'{saved_filepath}');"
-        "mesh.compute_vertex_normals();"
-        "mesh=mesh if len(mesh.triangles)>0 else o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(o3d.io.read_point_cloud(r'{saved_filepath}'), o3d.utility.DoubleVector([0.005, 0.01, 0.02]));"
-        f"mesh=mesh.simplify_quadric_decimation(target_number_of_triangles=int(len(mesh.triangles)*0.5));"
-        "mesh.compute_vertex_normals();"
-        f"o3d.io.write_triangle_mesh(r'{output_filepath}', mesh)"
+        f"import open3d as o3d\n"
+        f"mesh = o3d.io.read_triangle_mesh(r'{saved_filepath}')\n"
+        f"if len(mesh.vertex_normals) == 0:\n"
+        f"    mesh.compute_vertex_normals()\n"
+        f"if len(mesh.triangles) == 0:\n"
+        f"    pcd = o3d.io.read_point_cloud(r'{saved_filepath}')\n"
+        f"    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(pcd, o3d.utility.DoubleVector([0.005, 0.01, 0.02]))\n"
+        f"mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=int(len(mesh.triangles)*0.5))\n"
+        f"mesh.compute_vertex_normals()\n"
+        f"o3d.io.write_triangle_mesh(r'{output_filepath}', mesh)\n"
     )
 
     import sys
