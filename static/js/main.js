@@ -2336,7 +2336,7 @@ this.renderer.domElement.addEventListener('contextmenu', (event) => {
             this.sendPolygonToBackendForSelection();
         });
 
-        // Add event listener for mouse click to add green diamond marker when markFeatureMode is active
+// Add event listener for mouse click to add green diamond marker when markFeatureMode is active
 this.renderer.domElement.addEventListener('click', (event) => {
     if (this.markFeatureMode) {
         event.preventDefault();
@@ -2474,6 +2474,37 @@ this.renderer.domElement.addEventListener('click', (event) => {
         } else {
             this.addPolygonPoint(event);
         }
+    }
+});
+
+// Refine pointer event listeners to allow polygon selection in labeling mode without interference
+this.renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (this.labelingMode && !this.markFeatureMode) {
+        // Allow polygon selection pointerdown events to propagate
+        // Do not stop propagation here
+    } else if (this.labelingMode) {
+        // For other labeling mode pointerdown events, stop propagation
+        event.stopPropagation();
+    }
+});
+
+this.renderer.domElement.addEventListener('pointermove', (event) => {
+    if (this.labelingMode && !this.markFeatureMode) {
+        // Allow polygon selection pointermove events to propagate
+        // Do not stop propagation here
+    } else if (this.labelingMode) {
+        // For other labeling mode pointermove events, stop propagation
+        event.stopPropagation();
+    }
+});
+
+this.renderer.domElement.addEventListener('pointerup', (event) => {
+    if (this.labelingMode && !this.markFeatureMode) {
+        // Allow polygon selection pointerup events to propagate
+        // Do not stop propagation here
+    } else if (this.labelingMode) {
+        // For other labeling mode pointerup events, stop propagation
+        event.stopPropagation();
     }
 });
     }
