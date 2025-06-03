@@ -2338,62 +2338,62 @@ this.renderer.domElement.addEventListener('contextmenu', (event) => {
 
         // Add event listener for mouse click to add green diamond marker when markFeatureMode is active
 this.renderer.domElement.addEventListener('click', (event) => {
-            if (this.markFeatureMode) {
-                event.preventDefault();
+    if (this.markFeatureMode) {
+        event.preventDefault();
 
-                console.log('Mark Feature mode active: adding green diamond marker.');
+        console.log('Mark Feature mode active: adding green diamond marker.');
 
-                const rect = this.renderer.domElement.getBoundingClientRect();
-                const mouse = new THREE.Vector2(
-                    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                    -((event.clientY - rect.top) / rect.height) * 2 + 1
-                );
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
 
-                const raycaster = new THREE.Raycaster();
-                raycaster.setFromCamera(mouse, this.camera);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, this.camera);
 
-                const intersects = raycaster.intersectObject(this.mesh, true);
-                if (intersects.length > 0) {
-                    const intersectPoint = intersects[0].point;
+        const intersects = raycaster.intersectObject(this.mesh, true);
+        if (intersects.length > 0) {
+            const intersectPoint = intersects[0].point;
 
-                    // Create green diamond marker mesh
-                    const diamondGeometry = new THREE.OctahedronGeometry(0.2);
-                    const diamondMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-                    const diamondMesh = new THREE.Mesh(diamondGeometry, diamondMaterial);
+            // Create green diamond marker mesh
+            const diamondGeometry = new THREE.OctahedronGeometry(0.2);
+            const diamondMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const diamondMesh = new THREE.Mesh(diamondGeometry, diamondMaterial);
 
-                    if (this.pivot) {
-                        const localPos = this.pivot.worldToLocal(intersectPoint.clone());
-                        console.log('Intersect point:', intersectPoint);
-                        console.log('Local position before offset:', localPos);
-                        // Removed y offset for better precision
-                        // localPos.y += 3;
-                        diamondMesh.position.copy(localPos);
-                        console.log('Diamond marker position:', diamondMesh.position);
-                        this.pivot.add(diamondMesh);
-                    } else {
-                        diamondMesh.position.copy(intersectPoint);
-                        // diamondMesh.position.y += 3;
-                        this.scene.add(diamondMesh);
-                    }
+            if (this.pivot) {
+                const localPos = this.pivot.worldToLocal(intersectPoint.clone());
+                console.log('Intersect point:', intersectPoint);
+                console.log('Local position before offset:', localPos);
+                // Removed y offset for better precision
+                // localPos.y += 3;
+                diamondMesh.position.copy(localPos);
+                console.log('Diamond marker position:', diamondMesh.position);
+                this.pivot.add(diamondMesh);
+            } else {
+                diamondMesh.position.copy(intersectPoint);
+                // diamondMesh.position.y += 3;
+                this.scene.add(diamondMesh);
+            }
 
-                    // Prompt user for feature name
-                    let featureName = prompt('Enter name for this feature:', 'Feature');
-                    if (featureName === null) {
-                        // User clicked cancel, do not add marker
-                        if (this.pivot) {
-                            this.pivot.remove(diamondMesh);
-                        } else {
-                            this.scene.remove(diamondMesh);
-                        }
-                        return;
-                    }
-                    if (featureName.trim() === '') {
-                        featureName = 'Feature';
-                    }
-                    featureName = featureName.trim();
+            // Prompt user for feature name
+            let featureName = prompt('Enter name for this feature:', 'Feature');
+            if (featureName === null) {
+                // User clicked cancel, do not add marker
+                if (this.pivot) {
+                    this.pivot.remove(diamondMesh);
+                } else {
+                    this.scene.remove(diamondMesh);
+                }
+                return;
+            }
+            if (featureName.trim() === '') {
+                featureName = 'Feature';
+            }
+            featureName = featureName.trim();
 
-                    // Add to flaggedPoints array with feature name as label
-                    this.flaggedPoints.push({ mesh: diamondMesh, label: featureName });
+            // Add to flaggedPoints array with feature name as label
+            this.flaggedPoints.push({ mesh: diamondMesh, label: featureName });
 
             // Add label entry if not already present
             if (!this.labels.some(l => l.label === featureName)) {
@@ -2431,55 +2431,51 @@ this.renderer.domElement.addEventListener('click', (event) => {
             // Highlight markers for the new feature label
             this.highlightMarkersByLabel(featureName);
 
-                    alert(`Green diamond feature marker added and label "${featureName}" updated.`);
+            alert(`Green diamond feature marker added and label "${featureName}" updated.`);
+        }
+    } else if (this.toggledLabels.size > 0) {
+        // Check if a diamond marker was clicked when show features is toggled on
+        event.preventDefault();
 
-                    // Optionally deactivate marking mode after one placement
-                    // this.markFeatureMode = false;
-                    // this.markFeatureButton.classList.remove('active');
-                }
-                } else if (this.toggledLabels.size > 0) {
-                    // Check if a diamond marker was clicked when show features is toggled on
-                    event.preventDefault();
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
 
-                    const rect = this.renderer.domElement.getBoundingClientRect();
-                    const mouse = new THREE.Vector2(
-                        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                        -((event.clientY - rect.top) / rect.height) * 2 + 1
-                    );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, this.camera);
 
-                    const raycaster = new THREE.Raycaster();
-                    raycaster.setFromCamera(mouse, this.camera);
+        // Raycast against diamond marker meshes
+        const markerMeshes = this.flaggedPoints.map(fp => fp.mesh);
+        const intersects = raycaster.intersectObjects(markerMeshes, true);
 
-                    // Raycast against diamond marker meshes
-                    const markerMeshes = this.flaggedPoints.map(fp => fp.mesh);
-                    const intersects = raycaster.intersectObjects(markerMeshes, true);
-
-                    if (intersects.length > 0) {
-                        const intersectedMesh = intersects[0].object;
-                        // Find the label for the intersected marker mesh
-                        const flaggedPoint = this.flaggedPoints.find(fp => fp.mesh === intersectedMesh);
-                        if (flaggedPoint) {
-                            console.log('Diamond marker clicked:', flaggedPoint.label);
-                            this.showAnnotationModal(flaggedPoint.label);
-                        }
-                    }
-                } else {
-                    // Polygonal selection click behavior
-                    if (!this.labelingMode) return;
-                    if (this.orbitControlsEnabledInLabeling) {
-                        // Suspend polygon selection when orbit controls are enabled
-                        return;
-                    }
-                    if (this.selectionFinalized) {
-                        if (!this.assignLabelDialogShown && this.selectedFaces.size > 0) {
-                            this.assignLabelDialogShown = true;
-                            this.showAssignLabelModal();
-                        }
-                    } else {
-                        this.addPolygonPoint(event);
-                    }
-                }
-            });
+        if (intersects.length > 0) {
+            const intersectedMesh = intersects[0].object;
+            // Find the label for the intersected marker mesh
+            const flaggedPoint = this.flaggedPoints.find(fp => fp.mesh === intersectedMesh);
+            if (flaggedPoint) {
+                console.log('Diamond marker clicked:', flaggedPoint.label);
+                this.showAnnotationModal(flaggedPoint.label);
+            }
+        }
+    } else {
+        // Polygonal selection click behavior
+        if (!this.labelingMode) return;
+        if (this.orbitControlsEnabledInLabeling) {
+            // Suspend polygon selection when orbit controls are enabled
+            return;
+        }
+        if (this.selectionFinalized) {
+            if (!this.assignLabelDialogShown && this.selectedFaces.size > 0) {
+                this.assignLabelDialogShown = true;
+                this.showAssignLabelModal();
+            }
+        } else {
+            this.addPolygonPoint(event);
+        }
+    }
+});
     }
 
     sendPolygonToBackendForSelection() {
