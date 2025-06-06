@@ -1103,6 +1103,11 @@ if (removeAllImagesButton) {
 
         this.renderer.domElement.addEventListener('pointerdown', (event) => {
             if (this.labelingMode) {
+                // Allow pointer events on label input container to avoid interrupting polygon selection
+                const labelInputContainer = this.labelInputContainer;
+                if (labelInputContainer && labelInputContainer.contains(event.target)) {
+                    return; // Do not stop propagation if event target is inside label input container
+                }
                 // Disable pan start on pointer down in labeling mode
                 event.stopPropagation();
             }
@@ -1110,6 +1115,11 @@ if (removeAllImagesButton) {
 
         this.renderer.domElement.addEventListener('pointermove', (event) => {
             if (this.labelingMode) {
+                // Allow pointer events on label input container to avoid interrupting polygon selection
+                const labelInputContainer = this.labelInputContainer;
+                if (labelInputContainer && labelInputContainer.contains(event.target)) {
+                    return; // Do not stop propagation if event target is inside label input container
+                }
                 // Disable pan move on pointer move in labeling mode
                 event.stopPropagation();
             }
@@ -1117,6 +1127,11 @@ if (removeAllImagesButton) {
 
         this.renderer.domElement.addEventListener('pointerup', (event) => {
             if (this.labelingMode) {
+                // Allow pointer events on label input container to avoid interrupting polygon selection
+                const labelInputContainer = this.labelInputContainer;
+                if (labelInputContainer && labelInputContainer.contains(event.target)) {
+                    return; // Do not stop propagation if event target is inside label input container
+                }
                 // Disable pan end on pointer up in labeling mode
                 event.stopPropagation();
             }
@@ -1259,6 +1274,7 @@ if (removeAllImagesButton) {
                 // Clear selection and input
                 this.selectedFaces.clear();
                 this.labelInput.value = '';
+                this.selectionFinalized = false;  // Reset selectionFinalized to allow polygon selection again
                 console.log('After clearing selection and input');
 
                 console.log('Before updating UI');
