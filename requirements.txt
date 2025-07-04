@@ -1,0 +1,7 @@
+flask
+flask-cors
+flask-compress
+trimesh
+numpy
+shapely
+open3d
