@@ -354,6 +354,9 @@ def upload_mesh_and_convert():
     converted_url = f"/static/data/{output_filename}"
     return jsonify({'message': 'Conversion successful', 'converted_url': converted_url}), 200
 
+import os
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    app.run(host='127.0.0.1', port=5001, debug=True)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port, debug=False)
