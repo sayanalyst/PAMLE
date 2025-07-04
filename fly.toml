@@ -1,7 +1,7 @@
 app = "mesh-viewer"
 
 [build]
-  builder = "dockerfile"
+  builder = "docker"
 
 [env]
   PORT = "8080"
