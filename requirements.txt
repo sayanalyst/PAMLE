@@ -1,6 +1,7 @@
 flask
 flask-cors
 flask-compress
+gunicorn
 trimesh
 numpy
 shapely
