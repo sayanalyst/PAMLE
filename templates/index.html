@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>PAMLE v1.0</title>
+    <title>PAMLE</title>
     <link rel="icon" href="/static/assets/favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="/static/css/styles.css" />
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -21,7 +21,7 @@
     <div id="welcome-screen">
         <div id="welcome-text">
             <h1>Welcome to <span class="gradient-text">PAMLE</span></h1>
-            <p>Let's Work 3D</p>
+            <p>Let's work 3D</p>
         </div>
     </div>
     <div id="heading">
@@ -41,10 +41,22 @@
             <button id="load-mesh-button" disabled style="padding: 4px 8px; font-size: 0.8rem; cursor: pointer; background-color: rgb(12, 88, 209); color: white; border: none; border-radius: 4px;">Load Mesh</button>
         </div>
 
-        <button id="toggle-heatmap" title="Heatmap" class="control-button" style="right: 0.5rem;">Heatmap</button>
-        <button id="toggle-labeling" title="Labeling Mode" class="control-button" style="right: 5.0rem;">Label</button>
-        <button id="label-list-button" title="Label List" class="control-button" style="left: 0.5rem;">Labels ▼</button>
-        <button id="export-annotations-csv" title="Export Annotations as CSV" class="control-button" style="left: 6rem;">Export Annotations CSV</button>
+        <button id="toggle-heatmap" title="Heatmap" class="control-button" style="right: 2.8rem;">Heatmap</button>
+        <button id="toggle-labeling" title="Labeling Mode" class="control-button" style="right: 7.5rem;">Label</button>
+        <button id="label-list-button" title="Label List" class="control-button" style="left: 6rem;">Labels ▼</button>
+        <div style="position: absolute; right: 0.5rem; top: 0.5rem; z-index: 10001;">
+            <button id="clustering-method-button" class="control-button" style="padding: 4px 8px; font-size: 1.2rem; cursor: pointer; background-color: #151618; color: white; border: none; border-radius: 4px; width: 32px; height: 24px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;">
+                <span style="display: block; width: 20px; height: 2px; background-color: white; border-radius: 2px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background-color: white; border-radius: 2px;"></span>
+                <span style="display: block; width: 20px; height: 2px; background-color: white; border-radius: 2px;"></span>
+            </button>
+            <div id="clustering-method-dropdown" style="display: none; position: absolute; background-color: rgba(0,0,0,0.8); border: 1px solid #eee; border-radius: 4px; min-width: 70px; font-size: 0.7rem; margin-top: 2.5px; right: 0;">
+                <div class="dropdown-item" data-method="dbscan" style="padding: 8px; cursor: pointer; color: white;">DBSCAN</div>
+                <div class="dropdown-item" data-method="kmeans" style="padding: 8px; cursor: pointer; color: white;">K-means</div>
+                <div class="dropdown-item" data-method="meanshift" style="padding: 8px; cursor: pointer; color: white;">Mean-shift</div>
+            </div>
+        </div>
+        <button id="export-annotations-csv" title="Export Annotations as CSV" class="control-button" style="left: 12rem;">Export Annotations CSV</button>
         <button id="export-selected-mesh" title="Export Selected Mesh" class="control-button" style="left: 18rem; display: none;">Export Selected Mesh</button>
         <div id="label-list-dropdown" style="display:none; position:absolute; left: 0.5rem; top: 3.5rem; background: rgba(0,0,0,0.8); color: white; border: 1px solid #eee; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 10000; min-width: 150px; font-size: 0.8rem;"></div>
         <button id="fullscreen-toggle" title="Fullscreen" style="position:absolute; bottom:1.2rem; right:0.5rem; background:none; border:none; color:#eee; font-size:1.5rem; cursor:pointer; user-select:none;">&#x26F6;</button>
