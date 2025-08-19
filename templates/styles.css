@@ -1,0 +1,344 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #222222;
+  color: #eee;
+  overflow: hidden;
+}
+
+#heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  font-weight: bold;
+  font-size: 1.5rem;
+  color: black;
+  background-color: white;
+  user-select: none;
+}
+
+#thesis-text {
+  font-style: italic;
+  font-size: 0.7rem;
+  margin-right: 1rem;
+  white-space: nowrap;
+}
+
+#heading h1 {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+#logo {
+  height: 3.2rem;
+  margin-right: 0.5rem;
+}
+
+#header-spacer {
+  width: 2rem;
+}
+
+.border {
+  display: none;
+}
+
+#viewer-container {
+  position: relative;
+  border: 2px solid #f8f8f8; /* off white border */
+  width: 100vw;
+  height: calc(100vh - 4rem); /* Adjust height to leave space for heading */
+  box-sizing: border-box;
+  background: linear-gradient(145deg, rgba(0,0,0,0.8) 80%, rgba(255,255,255,0.2) 20%);
+  box-shadow: inset 0 0 20px #444444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#viewer-container:fullscreen {
+  box-shadow: none;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* For WebKit browsers */
+#viewer-container:-webkit-full-screen {
+  box-shadow: none;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* For Mozilla Firefox */
+#viewer-container:-moz-full-screen {
+  box-shadow: none;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* For Microsoft Edge */
+#viewer-container:-ms-fullscreen {
+  box-shadow: none;
+  border: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+#fullscreen-toggle {
+  outline: none;
+  box-shadow: none;
+  background: none;
+  border: none;
+}
+
+#fullscreen-toggle:focus,
+#fullscreen-toggle:active {
+  outline: none;
+  box-shadow: none;
+  background: none;
+  border: none;
+}
+
+#toggle-heatmap {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1000;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  background: linear-gradient(145deg, #111111, #000000);
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.7);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#toggle-heatmap:hover {
+  background: linear-gradient(145deg, #222222, #111111);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.9);
+}
+
+#toggle-heatmap.active {
+  background: #28a745; /* Override gradient with solid green */
+  color: white;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+#toggle-heatmap.active:hover {
+  background-color: #218838;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+/* Labeling button style same as heatmap */
+#toggle-labeling {
+  position: absolute;
+  top: 0.5rem;
+  right: 3.5rem;
+  z-index: 1000;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  background: linear-gradient(145deg, #111111, #000000);
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.7);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#toggle-labeling:hover {
+  background: linear-gradient(145deg, #222222, #111111);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.9);
+}
+
+#toggle-labeling.active {
+  background: #28a745; /* Override gradient with solid green */
+  color: white;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+#toggle-labeling.active:hover {
+  background-color: #218838;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+#mark-feature-button {
+  position: relative;
+  margin-left: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  background: linear-gradient(145deg, #111111, #000000);
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.7);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  user-select: none;
+}
+
+#mark-feature-button:hover {
+  background: linear-gradient(145deg, #222222, #111111);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.9);
+}
+
+#mark-feature-button.active {
+  background: #28a745; /* Override gradient with solid green */
+  color: white;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+#mark-feature-button.active:hover {
+  background-color: #218838;
+  color: white;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+}
+
+#color-index-bar {
+  border-radius: 4px;
+  border: 1px solid #eee;
+  width: 12px;
+  height: 200px;
+  background: linear-gradient(to top, hsl(252, 100%, 50%), hsl(180, 100%, 50%), hsl(120, 100%, 50%), hsl(60, 100%, 50%), hsl(0, 100%, 50%));
+  position: absolute;
+  top: 4.5rem;
+  left: 0.5rem;
+  user-select: none;
+  }
+  
+#color-index-labels {
+  position: absolute;
+  top: 4.5rem;
+  left: 1.8rem;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: white;
+  font-size: 0.7rem;
+  user-select: none;
+  pointer-events: none;
+  }
+  
+  /* Spinner styles */
+.spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border: 8px solid rgba(255, 255, 255, 0.2);
+  border-top: 8px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: white;
+}
+
+/* Make the percentage text static (not rotating) by applying counter rotation */
+.spinner > #loading-percentage {
+  animation: counter-spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes counter-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#version-label {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 0.5rem; /* Adjusted to align horizontally with fullscreen button */
+  color: #068533;
+  font-size: 0.8rem;
+  user-select: none;
+  z-index: 1001;
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Welcome screen overlay */
+#welcome-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background:
+    /* main dark gradient */
+    linear-gradient(135deg, #000000 60%, #111111 100%);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 20000;
+  opacity: 1;
+  transition: opacity 1s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.10em;
+}
+
+#welcome-text {
+  opacity: 0;
+  animation: fadeInText 1.5s ease forwards;
+}
+
+#welcome-text h1 {
+  font-size: 5rem;
+  font-weight: 600;
+  margin: 0;
+  margin-bottom: 1.5rem;
+  user-select: none;
+}
+
+#welcome-text p {
+font-size: 2.5rem;
+font-weight: 400;
+margin: 0;
+user-select: none;
+text-align: center;
+background: linear-gradient(0deg, #b700ff, #00ff6a); /* brighter purple and green */
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+color: transparent;
+}
+
+.gradient-text {
+  background: linear-gradient(180deg, #b700ff, #00ff6a); /* brighter purple and green */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes fadeInText {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
